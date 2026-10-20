@@ -51,10 +51,12 @@
 /* Modal / Dropdown / Popover Animation */
 .popover-menu {
   position: absolute;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--bg-popover, rgba(18, 24, 38, 0.96));
+  border: 1px solid var(--border-popover, var(--border-color));
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-hover);
+  box-shadow: var(--shadow-popover, var(--shadow-hover));
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
   padding: 6px;
   display: flex;
   flex-direction: column;

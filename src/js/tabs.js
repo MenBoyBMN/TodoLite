@@ -112,6 +112,17 @@ export class TabManager {
     store.setState({ activeTabId: tabId });
   }
 
+  shouldConfirmDelete() {
+    try {
+      const stored = localStorage.getItem('todolite_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.confirmDelete !== undefined) return Boolean(parsed.confirmDelete);
+      }
+    } catch (_) {}
+    return true;
+  }
+
   promptCloseTab(tab, e) {
     if (e) e.stopPropagation();
     const { tabs } = store.getState();
@@ -122,6 +133,12 @@ export class TabManager {
     }
 
     this.pendingCloseTab = tab;
+
+    if (!this.shouldConfirmDelete()) {
+      this.executeDeleteTab();
+      return;
+    }
+
     if (this.confirmTabName) {
       this.confirmTabName.textContent = tab.name;
     }

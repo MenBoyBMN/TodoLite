@@ -105,6 +105,24 @@ export class Bridge {
       const tabId = args.tab_id || args.tabId;
       res.tab_id = tabId;
       res.tabId = tabId;
+    } else if (command === 'pick_export_directory') {
+      const defaultPath = args.default_path !== undefined ? args.default_path : (args.defaultPath !== undefined ? args.defaultPath : null);
+      res.default_path = defaultPath;
+      res.defaultPath = defaultPath;
+    } else if (command === 'save_exported_file') {
+      res.directory = args.directory || '';
+      res.filename = args.filename || '';
+      res.content = args.content || '';
+    } else if (command === 'open_export_directory') {
+      res.directory = args.directory || '';
+    } else if (command === 'register_global_toggle_shortcut') {
+      res.shortcut = args.shortcut || '';
+    } else if (command === 'restore_backup') {
+      res.tabs = args.tabs || [];
+      res.todos = args.todos || [];
+      res.note_tabs = args.note_tabs || args.noteTabs || [];
+      res.noteTabs = res.note_tabs;
+      res.notes = args.notes || [];
     }
     return res;
   }
@@ -224,6 +242,24 @@ export class Bridge {
       let notes = this.fallbackHandler('get_all_notes_internal');
       notes[result.tab_id] = result;
       localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+    } else if (command === 'reset_database') {
+      localStorage.removeItem(STORAGE_KEY_TABS);
+      localStorage.removeItem(STORAGE_KEY_TODOS);
+      localStorage.removeItem(STORAGE_KEY_NOTE_TABS);
+      localStorage.removeItem(STORAGE_KEY_NOTES);
+    } else if (command === 'restore_backup' && args) {
+      const tabs = args.tabs || [];
+      const todos = args.todos || [];
+      const noteTabs = args.note_tabs || args.noteTabs || [];
+      const notesList = args.notes || [];
+      localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
+      localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+      localStorage.setItem(STORAGE_KEY_NOTE_TABS, JSON.stringify(noteTabs));
+      const notesObj = {};
+      notesList.forEach(n => {
+        if (n && n.tab_id) notesObj[n.tab_id] = n;
+      });
+      localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notesObj));
     }
   }
 
@@ -267,6 +303,30 @@ export class Bridge {
             }));
           } catch (createErr) {
             console.error('Failed to recover todo into SQLite:', createErr);
+          }
+        }
+      }
+
+      // Recover notes into SQLite if SQLite has note_tabs and missing note content
+      const dbNoteTabs = await this.rawTauriInvoke('get_all_note_tabs').catch(() => []);
+      const dbNotes = await this.rawTauriInvoke('get_all_notes').catch(() => []);
+      const localNotesRaw = localStorage.getItem(STORAGE_KEY_NOTES);
+      let localNotes = {};
+      if (localNotesRaw) {
+        try { localNotes = JSON.parse(localNotesRaw); } catch (_) {}
+      }
+
+      const dbNotesByTab = new Map(dbNotes.map(n => [n.tab_id, n]));
+      for (const noteTab of dbNoteTabs) {
+        const existingNote = dbNotesByTab.get(noteTab.id);
+        if (!existingNote || !existingNote.content || !existingNote.content.trim()) {
+          const localNote = localNotes[noteTab.id] || (dbNoteTabs.length === 1 ? Object.values(localNotes)[0] : null);
+          if (localNote && localNote.content && localNote.content.trim()) {
+            console.log(`[TodoLite Recovery] Recovering note for tab "${noteTab.name}" into SQLite...`);
+            await this.rawTauriInvoke('upsert_note', this.formatArgs('upsert_note', {
+              tab_id: noteTab.id,
+              content: localNote.content
+            })).catch((err) => console.error('Failed to recover note:', err));
           }
         }
       }
@@ -427,6 +487,16 @@ export class Bridge {
         return true;
       }
 
+      case 'exit_app': {
+        console.log('App exited');
+        window.close();
+        return true;
+      }
+
+      case 'register_global_toggle_shortcut': {
+        return Promise.resolve(null);
+      }
+
       case 'get_all_note_tabs': {
         const raw = localStorage.getItem(STORAGE_KEY_NOTE_TABS);
         if (!raw) {
@@ -514,6 +584,39 @@ export class Bridge {
         return note;
       }
 
+      case 'get_default_export_directory':
+        return 'Documents/TodoLite_Exports';
+      case 'pick_export_directory':
+        return null;
+      case 'save_exported_file':
+        return args ? `${args.directory}/${args.filename}` : 'saved';
+      case 'open_export_directory':
+        return null;
+
+      case 'reset_database': {
+        localStorage.removeItem(STORAGE_KEY_TABS);
+        localStorage.removeItem(STORAGE_KEY_TODOS);
+        localStorage.removeItem(STORAGE_KEY_NOTE_TABS);
+        localStorage.removeItem(STORAGE_KEY_NOTES);
+        return true;
+      }
+
+      case 'restore_backup': {
+        const tabs = args.tabs || [];
+        const todos = args.todos || [];
+        const noteTabs = args.note_tabs || args.noteTabs || [];
+        const notesList = args.notes || [];
+        localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
+        localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+        localStorage.setItem(STORAGE_KEY_NOTE_TABS, JSON.stringify(noteTabs));
+        const notesObj = {};
+        notesList.forEach(n => {
+          if (n && n.tab_id) notesObj[n.tab_id] = n;
+        });
+        localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notesObj));
+        return true;
+      }
+
       default:
         console.warn(`Unknown command: ${command}`);
         return null;
@@ -559,6 +662,17 @@ export class Bridge {
     return this.invoke('hide_window');
   }
 
+  static async exitApp() {
+    if (this.isTauri()) {
+      try {
+        return await this.invoke('exit_app');
+      } catch (err) {
+        console.error('Failed to exit app via Tauri command:', err);
+      }
+    }
+    window.close();
+  }
+
   static async startDragging() {
     if (this.isTauri() && window.__TAURI__ && window.__TAURI__.window) {
       try {
@@ -568,5 +682,29 @@ export class Bridge {
         console.error('Failed to start dragging:', err);
       }
     }
+  }
+
+  // Export Directory API Wrappers
+  static async getDefaultExportDirectory() {
+    return this.invoke('get_default_export_directory');
+  }
+
+  static async pickExportDirectory(defaultPath = '') {
+    return this.invoke('pick_export_directory', { default_path: defaultPath || null });
+  }
+
+  static async saveExportedFile(directory, filename, content) {
+    return this.invoke('save_exported_file', { directory, filename, content });
+  }
+
+  static async openExportDirectory(directory) {
+    return this.invoke('open_export_directory', { directory });
+  }
+
+  static async registerGlobalToggleShortcut(shortcut) {
+    if (this.isTauri()) {
+      return await this.invoke('register_global_toggle_shortcut', { shortcut });
+    }
+    return Promise.resolve(null);
   }
 }

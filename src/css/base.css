@@ -212,6 +212,188 @@ html, body {
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
+.titlebar-drag-spacer {
+  flex: 1;
+  height: 100%;
+  min-width: 20px;
+  cursor: grab;
+}
+
+.titlebar-drag-spacer:active {
+  cursor: grabbing;
+}
+
+/* ==========================================================================
+   Bottom Navigation & Global Controls Bar (Sleek Floating Dock)
+   ========================================================================== */
+.app-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--bg-titlebar);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-color-subtle);
+  flex-shrink: 0;
+  z-index: 90;
+  user-select: none;
+  gap: 8px;
+}
+
+/* 4 Direct Page Tabs */
+.bottom-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color-subtle);
+}
+
+[data-theme="dark"] .bottom-nav-tabs {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bottom-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  outline: none;
+  white-space: nowrap;
+}
+
+.bottom-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="light"] .bottom-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bottom-tab-btn.active {
+  background: var(--accent-color);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 4px var(--accent-subtle);
+}
+
+.bottom-tab-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.bottom-tab-label {
+  line-height: 1;
+}
+
+/* Right Side: Global Controls */
+.bottom-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Style Switcher Badge (Glass / Minimal) */
+.bottom-style-btn {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  background: var(--accent-subtle);
+  color: var(--accent-color);
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  font-family: inherit;
+}
+
+.bottom-style-btn:hover {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 10px var(--accent-subtle);
+  transform: translateY(-0.5px);
+}
+
+.bottom-style-btn.is-minimal {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text-secondary);
+  border-color: var(--border-color-subtle);
+}
+
+.bottom-style-btn.is-minimal:hover {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 8px var(--accent-subtle);
+}
+
+/* Bottom Icon Action Buttons (Theme Toggle, Pin Toggle) */
+.bottom-icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--trans-fast);
+  padding: 0;
+}
+
+[data-theme="light"] .bottom-icon-btn {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.bottom-icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.08);
+}
+
+[data-theme="light"] .bottom-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Pin button active styling */
+.bottom-icon-btn.btn-pin.active {
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  color: #ffffff;
+  border-color: rgba(244, 63, 94, 0.6);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.45);
+}
+
+.bottom-icon-btn.btn-pin.active:hover {
+  filter: brightness(1.1);
+  transform: scale(1.1);
+}
+
 /* ==========================================================================
    Smooth Custom Scrollbar
    ========================================================================== */
@@ -551,10 +733,11 @@ html, body {
   border: 1px solid var(--border-color);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   border-radius: var(--radius-pill);
-  padding: 8px 18px;
+  padding: 7px 12px 7px 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
@@ -564,12 +747,53 @@ html, body {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   max-width: 90%;
+  cursor: pointer;
+  user-select: none;
 }
 
 .app-toast.show {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%) translateY(0);
+}
+
+.app-toast:hover {
+  filter: brightness(1.08);
+}
+
+.app-toast-text {
+  flex: 1;
+}
+
+.app-toast-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: currentColor;
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--trans-fast), transform var(--trans-fast), opacity var(--trans-fast);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.app-toast-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.15);
+}
+
+[data-theme="light"] .app-toast-close {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .app-toast-close:hover {
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .app-toast.error {
@@ -630,3 +854,25 @@ html, body {
   30% { transform: scale(1.15); }
   60% { transform: scale(0.95); }
 }
+
+/* Universal Select & Option Theme Styling */
+[data-theme="dark"] select {
+  color-scheme: dark !important;
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] select optgroup {
+  background-color: #1a2234 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] select {
+  color-scheme: light !important;
+}
+
+[data-theme="light"] select option,
+[data-theme="light"] select optgroup {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+

@@ -20,6 +20,9 @@
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/minimalist.css">
   <link rel="stylesheet" href="css/note.css">
+  <link rel="stylesheet" href="css/focus.css">
+  <link rel="stylesheet" href="css/calculator.css">
+  <link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
   <main id="app-window" class="is-pinned">
@@ -41,22 +44,16 @@
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
         </button>
-        <button id="btn-toggle-style" class="app-badge" title="Đổi phong cách: Glassmorphism / Minimalist" aria-label="Đổi phong cách giao diện">Glass</button>
-        <button id="btn-toggle-mode" class="app-badge mode-badge" title="Chuyển chế độ: Danh sách việc (List) ↔ Ghi chú (Note)" aria-label="Chuyển chế độ ghi chú hoặc checklist">Note</button>
       </div>
 
-      <div class="titlebar-actions">
-        <!-- Always On Top (Pin) Button -->
-        <button id="btn-pin-always-on-top" class="action-btn btn-pin active" data-tooltip="Ghim: Đang luôn hiển thị trên cùng" aria-label="Ghim trên cùng">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
-          </svg>
-        </button>
+      <div class="titlebar-drag-spacer" data-tauri-drag-region></div>
 
-        <!-- Theme Toggle Button -->
-        <button id="btn-toggle-theme" class="action-btn btn-theme" data-tooltip="Chuyển giao diện" aria-label="Chuyển theme">
-          <svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      <div class="titlebar-actions">
+        <!-- Settings Button -->
+        <button id="btn-open-settings" class="action-btn btn-settings" data-tooltip="Cài đặt hệ thống (Ctrl+,)" aria-label="Cài đặt">
+          <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
           </svg>
         </button>
 
@@ -112,6 +109,34 @@
           <span id="current-tab-title" class="toolbar-label">Công việc</span>
         </div>
         <div class="toolbar-right">
+          <!-- Note Export Popover Menu (Active in Note Mode) -->
+          <div class="popover-wrapper" id="note-export-wrapper" style="display: none;">
+            <button type="button" id="btn-export-note" class="tool-icon-btn note-export-btn" title="Xuất ghi chú (.md / .txt)" aria-label="Xuất ghi chú">
+              <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+            <div id="note-export-popover" class="note-popover note-export-popover">
+              <div class="palette-title">Xuất Ghi Chú Đang Mở</div>
+              <button type="button" class="note-export-option-btn" id="btn-export-md">
+                <span class="export-opt-icon">📝</span>
+                <div class="export-opt-text">
+                  <span class="export-opt-title">Markdown (.md)</span>
+                  <span class="export-opt-desc">Chuẩn đề mục, in đậm, danh sách</span>
+                </div>
+              </button>
+              <button type="button" class="note-export-option-btn" id="btn-export-txt">
+                <span class="export-opt-icon">📄</span>
+                <div class="export-opt-text">
+                  <span class="export-opt-title">Văn bản thuần (.txt)</span>
+                  <span class="export-opt-desc">Chuẩn UTF-8, mở trên mọi thiết bị</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <button id="btn-tool-search" class="tool-icon-btn" title="Tìm kiếm (Ctrl+F)" aria-label="Tìm kiếm">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
@@ -333,6 +358,268 @@
         </div>
       </div>
 
+      <!-- Focus Session Area -->
+      <div id="focus-session-area" class="focus-session-area">
+        <!-- Header -->
+        <div class="focus-top-header">
+          <div class="focus-heading-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Phiên Làm Việc Tập Trung
+          </div>
+          <span id="focus-today-badge" class="focus-today-badge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Hôm nay: 0 phút
+          </span>
+        </div>
+
+        <!-- Setup Card -->
+        <div id="focus-setup-card" class="focus-setup-card">
+          <!-- 1. Total Target Time -->
+          <div>
+            <div class="focus-group-label">
+              <span>🎯 Tổng thời gian làm việc mục tiêu</span>
+              <span class="sub-info">Cả buổi làm việc</span>
+            </div>
+            <div class="focus-chips-grid">
+              <button type="button" class="focus-chip-btn" data-target-mins="60">1 Giờ</button>
+              <button type="button" class="focus-chip-btn active" data-target-mins="120">2 Giờ</button>
+              <button type="button" class="focus-chip-btn" data-target-mins="180">3 Giờ</button>
+              <button type="button" class="focus-chip-btn" data-target-mins="240">4 Giờ</button>
+            </div>
+          </div>
+
+          <!-- 2. Work Duration -->
+          <div>
+            <div class="focus-group-label">
+              <span>🔥 Thời gian 1 hiệp tập trung</span>
+              <span class="sub-info">Khoảng làm việc</span>
+            </div>
+            <div class="focus-chips-grid">
+              <button type="button" class="focus-chip-btn active" data-work-mins="25">25 phút</button>
+              <button type="button" class="focus-chip-btn" data-work-mins="45">45 phút</button>
+              <button type="button" class="focus-chip-btn" data-work-mins="50">50 phút</button>
+              <button type="button" class="focus-chip-btn" data-work-mins="60">60 phút</button>
+            </div>
+          </div>
+
+          <!-- 3. Break Duration -->
+          <div>
+            <div class="focus-group-label">
+              <span>☕ Thời gian giải lao</span>
+              <span class="sub-info">Nghỉ giữa hiệp</span>
+            </div>
+            <div class="focus-chips-grid">
+              <button type="button" class="focus-chip-btn active" data-break-mins="5">5 phút</button>
+              <button type="button" class="focus-chip-btn" data-break-mins="10">10 phút</button>
+              <button type="button" class="focus-chip-btn" data-break-mins="15">15 phút</button>
+              <button type="button" class="focus-chip-btn" data-break-mins="20">20 phút</button>
+            </div>
+          </div>
+
+          <!-- 4. Linked Todo Task -->
+          <div>
+            <div class="focus-group-label">
+              <span>📌 Gắn với công việc cụ thể (Tùy chọn)</span>
+            </div>
+            <select id="focus-task-select" class="focus-task-select">
+              <option value="">-- Không gắn công việc (Tự do) --</option>
+            </select>
+          </div>
+
+          <!-- 5. Preferences -->
+          <div class="focus-switch-row">
+            <label class="focus-switch-label" for="focus-auto-next-toggle">
+              <input type="checkbox" id="focus-auto-next-toggle" class="focus-toggle-checkbox" checked>
+              <span>Tự động chuyển tiếp hiệp sau khi hết giờ nghỉ</span>
+            </label>
+          </div>
+          <div class="focus-switch-row">
+            <label class="focus-switch-label" for="focus-sound-toggle">
+              <input type="checkbox" id="focus-sound-toggle" class="focus-toggle-checkbox" checked>
+              <span>Chuông âm thanh báo hiệu khi hết hiệp</span>
+            </label>
+          </div>
+
+          <!-- 6. Start Button -->
+          <button type="button" id="btn-start-focus" class="btn-start-focus-session">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Bắt Đầu Tập Trung Ngay
+          </button>
+        </div>
+
+        <!-- Active Session Card -->
+        <div id="focus-active-card" class="focus-active-card">
+          <!-- Status Pill -->
+          <div id="focus-status-badge" class="focus-status-badge is-work">
+            <span id="focus-status-badge-text">Hiệp 1 • Đang tập trung 🔥</span>
+          </div>
+
+          <!-- Linked Task -->
+          <div id="focus-linked-task-box" class="focus-linked-task-box" style="display: none;">
+            <input type="checkbox" id="focus-linked-task-check" class="focus-linked-task-check" title="Đánh dấu hoàn thành task này">
+            <span id="focus-linked-task-text" class="focus-linked-task-text"></span>
+          </div>
+
+          <!-- Circular SVG Countdown Ring -->
+          <div class="focus-circle-container">
+            <svg class="focus-circle-svg" viewBox="0 0 190 190">
+              <circle class="focus-circle-bg" cx="95" cy="95" r="85"></circle>
+              <circle id="focus-circle-progress" class="focus-circle-progress" cx="95" cy="95" r="85"></circle>
+            </svg>
+            <div class="focus-timer-content">
+              <span id="focus-time-digits" class="focus-time-digits">25:00</span>
+              <span id="focus-time-sublabel" class="focus-time-sublabel">Hiệp tập trung</span>
+            </div>
+          </div>
+
+          <!-- Overall Target Progress Bar -->
+          <div class="focus-total-progress-wrap">
+            <div id="focus-total-progress-labels" class="focus-total-progress-labels">
+              <span>Tiến độ tổng: 0p / 2h</span>
+              <span>0%</span>
+            </div>
+            <div class="focus-total-progress-bar-bg">
+              <div id="focus-total-progress-bar-fill" class="focus-total-progress-bar-fill"></div>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="focus-actions-bar">
+            <button type="button" id="btn-focus-pause" class="btn-focus-action btn-primary" title="Tạm dừng / Tiếp tục">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+              Tạm dừng
+            </button>
+            <button type="button" id="btn-focus-skip" class="btn-focus-action" title="Bỏ qua hiệp hiện tại">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                <line x1="19" y1="5" x2="19" y2="19"></line>
+              </svg>
+              Bỏ qua
+            </button>
+            <button type="button" id="btn-focus-reset" class="btn-focus-action btn-danger" title="Kết thúc phiên">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              </svg>
+              Kết thúc
+            </button>
+          </div>
+
+          <!-- Ambient Sound Bar -->
+          <div class="focus-sound-bar">
+            <span>Âm thanh nền:</span>
+            <div class="focus-sound-options">
+              <button type="button" class="focus-sound-chip active" data-sound="none">Tắt</button>
+              <button type="button" class="focus-sound-chip" data-sound="rain">🌧️ Mưa</button>
+              <button type="button" class="focus-sound-chip" data-sound="waves">🌊 Sóng</button>
+              <button type="button" class="focus-sound-chip" data-sound="ticking">⏱️ Tích tắc</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Card -->
+        <div id="focus-completed-card" class="focus-completed-card">
+          <div class="focus-celebrate-icon">🎉</div>
+          <div class="focus-completed-title">Chúc Mừng Bạn!</div>
+          <p class="focus-completed-desc">
+            Bạn đã hoàn thành trọn vẹn toàn bộ thời gian làm việc mục tiêu đã đặt ra. Hãy dành thời gian thư giãn và nạp lại năng lượng nhé! ✨
+          </p>
+          <button type="button" id="btn-focus-restart" class="btn-start-focus-session" style="max-width: 220px;">
+            Thiết Lập Phiên Mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Calculator Area -->
+      <div id="calculator-area" class="calculator-area">
+        <!-- LCD Display -->
+        <div class="calc-display-card">
+          <div id="calc-expression" class="calc-expression"></div>
+          <div id="calc-result" class="calc-result">0</div>
+        </div>
+
+        <!-- Quick Action Bar -->
+        <div class="calc-quick-actions">
+          <button type="button" id="btn-calc-history" class="calc-action-btn" title="Lịch sử tính toán">
+            <span>🕒</span> Lịch sử
+          </button>
+          <button type="button" id="btn-calc-copy" class="calc-action-btn" title="Sao chép kết quả">
+            <span>📋</span> Sao chép
+          </button>
+          <button type="button" id="btn-calc-to-todo" class="calc-action-btn" title="Tạo việc cần làm với số này">
+            <span>➕</span> Thêm Todo
+          </button>
+          <button type="button" id="btn-calc-to-note" class="calc-action-btn" title="Chèn vào trang ghi chú">
+            <span>📝</span> Dán Note
+          </button>
+        </div>
+
+        <!-- Keypad Grid -->
+        <div id="calc-keypad" class="calc-keypad">
+          <!-- Row 1 -->
+          <button type="button" class="calc-key key-fn" data-action="clear" title="Xóa tất cả (Esc)">C</button>
+          <button type="button" class="calc-key key-fn" data-action="backspace" title="Xóa ký tự cuối (Backspace)">⌫</button>
+          <button type="button" class="calc-key key-op" data-action="percent" title="Phần trăm (%)">%</button>
+          <button type="button" class="calc-key key-op" data-op="÷" title="Chia (/)">÷</button>
+
+          <!-- Row 2 -->
+          <button type="button" class="calc-key" data-num="7">7</button>
+          <button type="button" class="calc-key" data-num="8">8</button>
+          <button type="button" class="calc-key" data-num="9">9</button>
+          <button type="button" class="calc-key key-op" data-op="×" title="Nhân (*)">×</button>
+
+          <!-- Row 3 -->
+          <button type="button" class="calc-key" data-num="4">4</button>
+          <button type="button" class="calc-key" data-num="5">5</button>
+          <button type="button" class="calc-key" data-num="6">6</button>
+          <button type="button" class="calc-key key-op" data-op="-" title="Trừ (-)">-</button>
+
+          <!-- Row 4 -->
+          <button type="button" class="calc-key" data-num="1">1</button>
+          <button type="button" class="calc-key" data-num="2">2</button>
+          <button type="button" class="calc-key" data-num="3">3</button>
+          <button type="button" class="calc-key key-op" data-op="+" title="Cộng (+)">+</button>
+
+          <!-- Row 5 -->
+          <button type="button" class="calc-key key-fn" data-action="negate" title="Đổi dấu âm dương">±</button>
+          <button type="button" class="calc-key" data-num="0">0</button>
+          <button type="button" class="calc-key" data-action="decimal" title="Dấu thập phân (.)">.</button>
+          <button type="button" class="calc-key key-equals" data-action="equals" title="Bằng (= / Enter)">=</button>
+        </div>
+
+        <!-- Quick Tax & Discount Bar -->
+        <div class="calc-shortcuts-bar">
+          <button type="button" class="calc-shortcut-chip" data-calc-shortcut="1.08">+8% VAT</button>
+          <button type="button" class="calc-shortcut-chip" data-calc-shortcut="1.10">+10% VAT</button>
+          <button type="button" class="calc-shortcut-chip" data-calc-shortcut="0.90">-10% Giảm</button>
+          <button type="button" class="calc-shortcut-chip" data-calc-shortcut="0.80">-20% Giảm</button>
+        </div>
+
+        <!-- History Drawer -->
+        <div id="calc-history-drawer" class="calc-history-drawer">
+          <div class="calc-history-header">
+            <span class="calc-history-title">
+              <span>🕒</span> Lịch Sử Tính Toán
+            </span>
+            <div class="calc-history-actions">
+              <button type="button" id="btn-history-clear" class="btn-history-clear" title="Xóa toàn bộ lịch sử">Xóa hết</button>
+              <button type="button" id="btn-history-close" class="btn-history-close" title="Đóng">✕</button>
+            </div>
+          </div>
+          <div id="calc-history-list" class="calc-history-list"></div>
+        </div>
+      </div>
+
       <!-- Search Overlay Modal -->
       <div id="search-overlay" class="search-overlay">
         <div class="search-box">
@@ -401,7 +688,52 @@
       </button>
     </footer>
 
-    <!-- 5. Deadline Picker Popover Modal -->
+    <!-- 5. Bottom Navigation & Quick Controls Bar -->
+    <nav id="app-bottom-bar" class="app-bottom-bar" aria-label="Thanh điều hướng và điều khiển nhanh">
+      <!-- Left: 4 Direct Page Tabs -->
+      <div class="bottom-nav-tabs" role="tablist">
+        <button type="button" class="bottom-tab-btn active" data-mode="checklist" title="Việc cần làm (Alt+1)" role="tab" aria-selected="true">
+          <span class="bottom-tab-icon">☑</span>
+          <span class="bottom-tab-label">Việc</span>
+        </button>
+        <button type="button" class="bottom-tab-btn" data-mode="note" title="Sổ tay ghi chú (Alt+2)" role="tab" aria-selected="false">
+          <span class="bottom-tab-icon">📝</span>
+          <span class="bottom-tab-label">Ghi chú</span>
+        </button>
+        <button type="button" class="bottom-tab-btn" data-mode="focus" title="Phiên tập trung (Alt+3)" role="tab" aria-selected="false">
+          <span class="bottom-tab-icon">⏱️</span>
+          <span class="bottom-tab-label">Focus</span>
+        </button>
+        <button type="button" class="bottom-tab-btn" data-mode="calculator" title="Máy tính bỏ túi (Alt+4)" role="tab" aria-selected="false">
+          <span class="bottom-tab-icon">🧮</span>
+          <span class="bottom-tab-label">Máy tính</span>
+        </button>
+      </div>
+
+      <!-- Right: Global Controls (Style Toggle, Theme Toggle, Pin Always on Top) -->
+      <div class="bottom-quick-actions">
+        <!-- Style Toggle (Glassmorphism / Minimalist) -->
+        <button type="button" id="btn-toggle-style" class="bottom-style-btn" title="Đổi phong cách: Glassmorphism / Minimalist" aria-label="Đổi phong cách giao diện">
+          Glass
+        </button>
+
+        <!-- Theme Toggle (Light / Dark) -->
+        <button type="button" id="btn-toggle-theme" class="bottom-icon-btn btn-theme" data-tooltip="Chuyển giao diện sáng/tối" aria-label="Chuyển theme">
+          <svg id="theme-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <!-- Always on Top (Pin) -->
+        <button type="button" id="btn-pin-always-on-top" class="bottom-icon-btn btn-pin active" data-tooltip="Ghim: Đang luôn hiển thị trên cùng" aria-label="Ghim trên cùng">
+          <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- 6. Deadline Picker Popover Modal -->
     <div id="deadline-popover-backdrop" class="deadline-popover-backdrop">
       <div class="deadline-popover" role="dialog" aria-modal="true" aria-label="Chọn hạn chót công việc">
         <div class="deadline-header">
@@ -578,11 +910,52 @@
               📝 7. Chế Độ Ghi Chú Thông Minh (TakeNote)
             </div>
             <ul class="guide-section-list">
-              <li>• <strong>Chuyển chế độ:</strong> Bấm nút <span class="guide-kbd">Note / List</span> ở góc trên cùng để đổi giữa Danh sách việc và Sổ tay ghi chú.</li>
+              <li>• <strong>Chuyển chế độ:</strong> Bấm nút <span class="guide-kbd">📝 Note</span> trên thanh điều hướng dưới cùng hoặc nhấn <span class="guide-kbd">Alt + 2</span>.</li>
               <li>• <strong>Hệ thống Tab độc lập hoàn toàn:</strong> TakeNote có hệ thống Tab riêng biệt (tối đa 4 tab), thêm/xóa/sửa tab ở Note hoàn toàn không ảnh hưởng đến tab của CheckList.</li>
               <li>• <strong>Soạn thảo phong phú:</strong> Hỗ trợ gõ tiếng Việt hoàn hảo, in đậm (Ctrl+B), in nghiêng (Ctrl+I), gạch chân (Ctrl+U), gạch ngang, đổi màu chữ, tô highlight dạ quang, đổi cỡ chữ, định dạng tiêu đề, chèn emoji và đường phân cách.</li>
               <li>• <strong>Tìm kiếm thông minh:</strong> Nhấn <span class="guide-kbd">Ctrl + F</span> để mở thanh tìm kiếm inline với vạch sáng màu vàng nổi bật và bộ đếm kết quả.</li>
-              <li>• <strong>Lưu tự động:</strong> Tự động lưu mọi thay đổi sau khi ngừng gõ 0.5s kèm bộ đếm số từ và ký tự realtime.</li>
+              <li>• <strong>Lưu tự động & Xuất file:</strong> Tự động lưu mọi thay đổi sau khi ngừng gõ 0.3s kèm bộ đếm số từ/ký tự realtime; hỗ trợ xuất file Markdown (.md) hoặc Text (.txt) chuẩn UTF-8 BOM.</li>
+            </ul>
+          </div>
+
+          <!-- 8. Focus Session -->
+          <div class="guide-section">
+            <div class="guide-section-header">
+              ⏱️ 8. Phiên Làm Việc Tập Trung (Focus Session)
+            </div>
+            <ul class="guide-section-list">
+              <li>• <strong>Chu kỳ Pomodoro thông minh:</strong> Đặt tổng thời gian làm việc (1h, 2h, 3h, 4h), chia thành các hiệp tập trung (25p, 45p, 50p) xen kẽ các hiệp nghỉ giải lao (5p, 10p, 15p). Chuyển nhanh bằng <span class="guide-kbd">Alt + 3</span>.</li>
+              <li>• <strong>Đồng hồ đếm ngược SVG:</strong> Hiển thị thời gian còn lại trực quan, tiến độ tổng thể cả buổi làm việc và âm thanh chuông báo tinh tế khi chuyển hiệp.</li>
+              <li>• <strong>Gắn với công việc:</strong> Chọn một task từ danh sách việc cần làm để tập trung và tích hoàn thành ngay trên màn hình.</li>
+              <li>• <strong>Âm thanh nền thư giãn:</strong> Bật tiếng mưa rơi, sóng biển hoặc tiếng tích tắc đồng hồ nhẹ nhàng để tăng tối đa sự tập trung.</li>
+            </ul>
+          </div>
+
+          <!-- 9. Calculator -->
+          <div class="guide-section">
+            <div class="guide-section-header">
+              🧮 9. Máy Tính Bỏ Túi & Tiện Ích (Pocket Calculator)
+            </div>
+            <ul class="guide-section-list">
+              <li>• <strong>Tính toán chuẩn xác:</strong> Màn hình LCD 2 dòng hiển thị cả biểu thức và kết quả có phân cách hàng nghìn rõ ràng. Chuyển nhanh bằng <span class="guide-kbd">Alt + 4</span>.</li>
+              <li>• <strong>Hỗ trợ bàn phím đầy đủ:</strong> Gõ số và các phép tính trực tiếp từ bàn phím số (Numpad) hoặc bàn phím máy tính.</li>
+              <li>• <strong>Tính nhanh % Thuế / Giảm giá:</strong> Bấm nhanh các nút <span class="guide-kbd">+8% VAT</span>, <span class="guide-kbd">+10% VAT</span>, <span class="guide-kbd">-10%</span>, <span class="guide-kbd">-20%</span>.</li>
+              <li>• <strong>Liên kết công việc tiện lợi:</strong> 1 chạm sao chép kết quả, tạo ngay task việc cần làm hoặc chèn thẳng kết quả vào trang ghi chú.</li>
+              <li>• <strong>Lịch sử tính toán:</strong> Lưu lại các phép tính gần nhất, nhấp vào để lấy lại số bất cứ lúc nào.</li>
+            </ul>
+          </div>
+
+          <!-- 10. Settings & Backup -->
+          <div class="guide-section">
+            <div class="guide-section-header">
+              ⚙️ 10. Cài Đặt Hệ Thống & Sao Lưu Dữ Liệu (Settings & Backup)
+            </div>
+            <ul class="guide-section-list">
+              <li>• <strong>Mở cài đặt:</strong> Bấm icon bánh răng <span class="guide-kbd">⚙</span> trên thanh tiêu đề hoặc nhấn phím tắt <span class="guide-kbd">Ctrl + ,</span>.</li>
+              <li>• <strong>Phím tắt toàn cục (Global Hotkey):</strong> Nhấn tổ hợp phím <span class="guide-kbd">Ctrl + Alt + T</span> ở bất kỳ ứng dụng nào trên Windows để ẩn/hiện TodoLite tức thì.</li>
+              <li>• <strong>Tùy chọn tiện ích:</strong> Bật/tắt tự khởi động cùng Windows, tự thu nhỏ xuống khay hệ thống khi bấm nút đóng [X], hoặc bật/tắt hộp thoại xác nhận khi xóa task / đóng tab.</li>
+              <li>• <strong>Sao lưu dữ liệu an toàn:</strong> Bấm nút "Xuất bản sao lưu (JSON)" để lưu toàn bộ danh sách công việc, ghi chú và cấu hình vào một tệp tin an toàn.</li>
+              <li>• <strong>Khôi phục & Cài đặt lại:</strong> Nhập lại file JSON sao lưu bất cứ lúc nào để đồng bộ nguyên vẹn dữ liệu vào cơ sở dữ liệu SQLite; hoặc dùng nút Đặt lại toàn bộ để xóa sạch dữ liệu và khởi động lại TodoLite về trạng thái ban đầu.</li>
             </ul>
           </div>
         </div>
@@ -641,9 +1014,328 @@
       </div>
     </div>
 
+    <!-- 7c. System Settings Modal -->
+    <div id="settings-modal-backdrop" class="settings-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+      <div class="settings-modal">
+        <!-- Header -->
+        <div class="settings-modal-header">
+          <div class="settings-modal-title">
+            <span class="settings-modal-title-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </span>
+            <span id="settings-modal-title">Cài Đặt Hệ Thống</span>
+          </div>
+          <button type="button" id="btn-close-settings-header" class="settings-close-btn" aria-label="Đóng cài đặt" title="Đóng (Esc)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Nav Tabs Bar -->
+        <div class="settings-nav-bar">
+          <button type="button" class="settings-nav-item active" data-tab="appearance">🎨 Giao diện</button>
+          <button type="button" class="settings-nav-item" data-tab="window">🪟 Cửa sổ</button>
+          <button type="button" class="settings-nav-item" data-tab="focus">⏱️ Focus</button>
+          <button type="button" class="settings-nav-item" data-tab="note">📝 Ghi chú</button>
+          <button type="button" class="settings-nav-item" data-tab="data">💾 Dữ liệu</button>
+          <button type="button" class="settings-nav-item" data-tab="about">ℹ️ Phím tắt</button>
+        </div>
+
+        <!-- Body & Tab Panes -->
+        <div class="settings-modal-body">
+          <!-- 1. Appearance Pane -->
+          <div id="settings-tab-appearance" class="settings-tab-pane active">
+            <div class="settings-section-card">
+              <div class="settings-section-title">🎨 Tùy Biến Giao Diện</div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Chủ đề màu sắc (Theme)</span>
+                  <span class="setting-desc">Tông màu Sáng ấm áp hoặc Tối Obsidian sâu</span>
+                </div>
+                <select id="setting-theme" class="setting-select">
+                  <option value="light">☀️ Sáng (Warm Light)</option>
+                  <option value="dark">🌙 Tối (Obsidian Dark)</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Phong cách thiết kế (Style)</span>
+                  <span class="setting-desc">Kính mờ bóng bẩy hoặc Tối giản phẳng</span>
+                </div>
+                <select id="setting-style" class="setting-select">
+                  <option value="glass">✨ Kính mờ (Glassmorphism)</option>
+                  <option value="minimal">📄 Tối giản (Minimalist Flat)</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Cỡ chữ hiển thị (Font Size)</span>
+                  <span class="setting-desc">Điều chỉnh kích thước phông chữ toàn app</span>
+                </div>
+                <select id="setting-font-size" class="setting-select">
+                  <option value="small">Nhỏ (11.5px)</option>
+                  <option value="normal" selected>Vừa - Chuẩn (12.5px)</option>
+                  <option value="large">Lớn (14px)</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Hiệu ứng mờ nền kính (Backdrop Blur)</span>
+                  <span class="setting-desc">Tắt hiệu ứng kính mờ để tăng tối đa tốc độ máy yếu</span>
+                </div>
+                <label class="setting-switch" for="setting-glass-blur">
+                  <input type="checkbox" id="setting-glass-blur" checked>
+                  <span class="setting-switch-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Window & Behavior Pane -->
+          <div id="settings-tab-window" class="settings-tab-pane">
+            <div class="settings-section-card">
+              <div class="settings-section-title">🪟 Cửa Sổ & Hành Vi</div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Luôn hiển thị trên cùng (Always on top)</span>
+                  <span class="setting-desc">Cửa sổ không bị che lấp bởi các ứng dụng khác</span>
+                </div>
+                <label class="setting-switch" for="setting-always-on-top">
+                  <input type="checkbox" id="setting-always-on-top" checked>
+                  <span class="setting-switch-slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Hành vi nút Đóng (✕)</span>
+                  <span class="setting-desc">Hành động khi nhấn nút tắt ở góc phải cửa sổ</span>
+                </div>
+                <select id="setting-close-action" class="setting-select">
+                  <option value="tray" selected>Ẩn xuống khay hệ thống (Tray)</option>
+                  <option value="exit">Thoát hoàn toàn ứng dụng</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Hộp thoại xác nhận khi xóa</span>
+                  <span class="setting-desc">Hiện thông báo cảnh báo trước khi xóa việc hoặc tab</span>
+                </div>
+                <label class="setting-switch" for="setting-confirm-delete">
+                  <input type="checkbox" id="setting-confirm-delete" checked>
+                  <span class="setting-switch-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Focus Session Pane -->
+          <div id="settings-tab-focus" class="settings-tab-pane">
+            <div class="settings-section-card">
+              <div class="settings-section-title">⏱️ Phiên Tập Trung (Pomodoro)</div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Thời gian hiệp tập trung mặc định</span>
+                  <span class="setting-desc">Thời lượng 1 hiệp làm việc</span>
+                </div>
+                <select id="setting-focus-work" class="setting-select">
+                  <option value="15">15 phút</option>
+                  <option value="20">20 phút</option>
+                  <option value="25" selected>25 phút (Chuẩn Pomodoro)</option>
+                  <option value="30">30 phút</option>
+                  <option value="45">45 phút</option>
+                  <option value="50">50 phút</option>
+                  <option value="60">60 phút (1 Giờ)</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Thời gian giải lao mặc định</span>
+                  <span class="setting-desc">Nghỉ ngơi nạp năng lượng giữa hiệp</span>
+                </div>
+                <select id="setting-focus-break" class="setting-select">
+                  <option value="3">3 phút</option>
+                  <option value="5" selected>5 phút</option>
+                  <option value="10">10 phút</option>
+                  <option value="15">15 phút</option>
+                  <option value="20">20 phút</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Tự động chuyển tiếp hiệp sau giờ nghỉ</span>
+                  <span class="setting-desc">Tự khởi động hiệp mới không cần bấm nút</span>
+                </div>
+                <label class="setting-switch" for="setting-focus-auto-next">
+                  <input type="checkbox" id="setting-focus-auto-next" checked>
+                  <span class="setting-switch-slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Chuông báo âm thanh</span>
+                  <span class="setting-desc">Phát chuông tinh tế khi chuyển đổi hiệp làm/nghỉ</span>
+                </div>
+                <label class="setting-switch" for="setting-focus-sound">
+                  <input type="checkbox" id="setting-focus-sound" checked>
+                  <span class="setting-switch-slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Âm thanh nền mặc định</span>
+                  <span class="setting-desc">Tiếng động thư giãn tăng độ tập trung</span>
+                </div>
+                <select id="setting-focus-ambient" class="setting-select">
+                  <option value="none" selected>Tắt âm thanh nền</option>
+                  <option value="rain">🌧️ Tiếng mưa rơi</option>
+                  <option value="waves">🌊 Tiếng sóng biển</option>
+                  <option value="ticking">⏱️ Tiếng tích tắc đồng hồ</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. TakeNote Pane -->
+          <div id="settings-tab-note" class="settings-tab-pane">
+            <div class="settings-section-card">
+              <div class="settings-section-title">📝 Sổ Tay Ghi Chú (TakeNote)</div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Phông chữ soạn thảo</span>
+                  <span class="setting-desc">Kiểu chữ hiển thị trong khung ghi chú</span>
+                </div>
+                <select id="setting-note-font" class="setting-select">
+                  <option value="sans" selected>Không chân hiện đại (Inter / Segoe UI)</option>
+                  <option value="mono">Đơn khoảng lập trình (Cascadia / Consolas)</option>
+                  <option value="serif">Có chân cổ điển (Georgia / Serif)</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Thống kê số từ & ký tự</span>
+                  <span class="setting-desc">Hiển thị số lượng từ và ký tự dưới góc ghi chú</span>
+                </div>
+                <label class="setting-switch" for="setting-note-show-stats">
+                  <input type="checkbox" id="setting-note-show-stats" checked>
+                  <span class="setting-switch-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. Data & Storage Pane -->
+          <div id="settings-tab-data" class="settings-tab-pane">
+            <div class="settings-section-card">
+              <div class="settings-section-title">💾 Dữ Liệu & Sao Lưu Cục Bộ</div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Thống kê dữ liệu hiện tại</span>
+                  <span class="setting-desc">Được lưu an toàn trong SQLite cục bộ</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <span id="settings-stat-todos" class="settings-stats-badge">0 mục</span>
+                  <span id="settings-stat-tabs" class="settings-stats-badge">0 tab</span>
+                  <span id="settings-stat-notes" class="settings-stats-badge">0 note</span>
+                </div>
+              </div>
+              <div class="setting-row setting-path-row">
+                <div class="setting-info">
+                  <span class="setting-label">Đường dẫn thư mục xuất tệp (Export Path)</span>
+                  <span class="setting-desc">Nơi lưu file xuất từ trang Note (.md, .txt) và file sao lưu (.json)</span>
+                </div>
+                <div class="setting-path-controls">
+                  <input type="text" id="setting-export-path" class="setting-path-input" placeholder="Đang tải đường dẫn..." spellcheck="false" title="Nhập hoặc dán đường dẫn thư mục">
+                  <button type="button" id="btn-browse-export-path" class="settings-action-btn path-action-btn" title="Chọn thư mục lưu trữ qua cửa sổ Windows">
+                    📂 Chọn
+                  </button>
+                  <button type="button" id="btn-open-export-folder" class="settings-action-btn path-action-btn" title="Mở thư mục này trong Windows Explorer">
+                    ↗ Mở
+                  </button>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Xuất file sao lưu (Backup)</span>
+                  <span class="setting-desc">Tải file .json lưu trữ toàn bộ dữ liệu</span>
+                </div>
+                <button type="button" id="btn-export-backup" class="settings-action-btn">
+                  📥 Xuất Sao Lưu (.json)
+                </button>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Phục hồi dữ liệu (Restore)</span>
+                  <span class="setting-desc">Nạp dữ liệu từ file sao lưu đã lưu trước đó</span>
+                </div>
+                <div>
+                  <input type="file" id="setting-import-file" accept=".json" style="display:none;">
+                  <button type="button" id="btn-import-backup" class="settings-action-btn">
+                    📤 Nạp File Sao Lưu
+                  </button>
+                </div>
+              </div>
+              <div class="setting-row" style="margin-top:6px; padding-top:10px; border-top:1px dashed var(--border-color-subtle);">
+                <div class="setting-info">
+                  <span class="setting-label" style="color:#f43f5e;">Đặt lại ứng dụng (Reset All)</span>
+                  <span class="setting-desc">Xóa sạch toàn bộ dữ liệu về trạng thái ban đầu</span>
+                </div>
+                <button type="button" id="btn-reset-all-data" class="settings-action-btn btn-danger">
+                  🗑️ Xóa Toàn Bộ
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. About & Shortcuts Pane -->
+          <div id="settings-tab-about" class="settings-tab-pane">
+            <div class="settings-section-card">
+              <div class="settings-shortcuts-header">
+                <div class="settings-section-title">⌨️ Phím Tắt Nhanh Hệ Thống</div>
+                <button type="button" id="btn-reset-shortcuts" class="btn-reset-shortcuts" title="Khôi phục toàn bộ phím tắt về mặc định">
+                  ↺ Đặt lại mặc định
+                </button>
+              </div>
+              <p class="settings-shortcuts-guide">
+                Nhấp vào ô phím tắt bất kỳ để tùy chỉnh lại theo ý bạn (nhấn Escape để hủy).
+              </p>
+              <div id="settings-shortcuts-list" class="settings-shortcuts-list">
+                <!-- Dynamically rendered interactive shortcut rows -->
+              </div>
+              <div class="settings-shortcut-item" style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-color-subtle); opacity: 0.75;">
+                <span style="font-size: 11px;">Định dạng văn bản ghi chú</span>
+                <span class="settings-kbd static">Ctrl + B / I / U</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="settings-modal-footer">
+          <span class="settings-version-tag">TodoLite v3.0.0</span>
+          <button type="button" id="btn-save-settings" class="btn-save-settings">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Xong
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 8. Global Floating Toast Notification -->
-    <div id="app-toast" class="app-toast" role="alert" aria-live="assertive">
+    <div id="app-toast" class="app-toast" role="alert" aria-live="assertive" title="Nhấp để đóng">
       <span id="app-toast-text" class="app-toast-text"></span>
+      <button type="button" id="app-toast-close" class="app-toast-close" aria-label="Đóng thông báo" title="Đóng">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
   </main>
 

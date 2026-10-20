@@ -26,6 +26,8 @@
   --min-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
   --min-shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06);
   --min-shadow-modal: 0 20px 45px rgba(0, 0, 0, 0.12);
+  --bg-popover: #ffffff;
+  --border-popover: #e2e8f0;
 }
 
 /* Dark Minimalist Tokens */
@@ -49,6 +51,8 @@
   --min-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.25);
   --min-shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.38);
   --min-shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.8);
+  --bg-popover: #151a25;
+  --border-popover: rgba(255, 255, 255, 0.12);
 }
 
 /* Minimalist Window Container */
@@ -182,4 +186,46 @@
   -webkit-backdrop-filter: none !important;
   border: 1px solid var(--min-border) !important;
   box-shadow: var(--min-shadow-modal) !important;
+}
+
+/* Minimalist Form Selects */
+[data-style="minimal"] .focus-task-select,
+[data-style="minimal"] .note-select {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--min-border-card) !important;
+}
+
+[data-style="minimal"][data-theme="dark"] .focus-task-select,
+[data-style="minimal"][data-theme="dark"] .note-select {
+  background-color: var(--min-bg-card) !important;
+  color: #f8fafc !important;
+}
+
+[data-style="minimal"][data-theme="light"] .focus-task-select,
+[data-style="minimal"][data-theme="light"] .note-select {
+  background-color: var(--min-bg-card) !important;
+  color: #0f172a !important;
+}
+
+/* Minimalist Bottom Bar */
+[data-style="minimal"] .app-bottom-bar {
+  background: var(--min-bg-titlebar) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-top: 1px solid var(--min-border-subtle) !important;
+  box-shadow: none !important;
+}
+
+[data-style="minimal"] .bottom-nav-tabs {
+  background: var(--min-bg-input) !important;
+  border: 1px solid var(--min-border-card) !important;
+}
+
+[data-style="minimal"] .bottom-tab-btn:hover {
+  background: var(--min-bg-tab-hover) !important;
+}
+
+[data-style="minimal"] .bottom-icon-btn {
+  background: var(--min-bg-input) !important;
+  border: 1px solid var(--min-border-card) !important;
 }

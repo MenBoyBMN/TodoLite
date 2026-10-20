@@ -9,7 +9,7 @@ export class ThemeManager {
     this.btnTheme = document.getElementById('btn-toggle-theme');
     this.themeIcon = document.getElementById('theme-icon');
     this.btnStyle = document.getElementById('btn-toggle-style');
-    this.btnMode = document.getElementById('btn-toggle-mode');
+    this.bottomTabBtns = document.querySelectorAll('.bottom-tab-btn');
     
     this.init();
   }
@@ -30,15 +30,17 @@ export class ThemeManager {
     const storedStyle = localStorage.getItem('todolite_style') || 'glass';
     this.applyStyle(storedStyle);
 
-    // Detect stored view mode: 'checklist' | 'note'
+    // Detect stored view mode: 'checklist' | 'note' | 'focus' | 'calculator'
     const storedMode = localStorage.getItem('todolite_view_mode') || 'checklist';
     this.applyMode(storedMode);
 
-    this.btnTheme.addEventListener('click', () => {
-      const current = store.getState().theme;
-      const next = current === 'dark' ? 'light' : 'dark';
-      this.applyTheme(next);
-    });
+    if (this.btnTheme) {
+      this.btnTheme.addEventListener('click', () => {
+        const current = store.getState().theme;
+        const next = current === 'dark' ? 'light' : 'dark';
+        this.applyTheme(next);
+      });
+    }
 
     if (this.btnStyle) {
       this.btnStyle.addEventListener('click', (e) => {
@@ -55,50 +57,53 @@ export class ThemeManager {
       });
     }
 
-    if (this.btnMode) {
-      this.btnMode.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const currentMode = store.getState().viewMode || 'checklist';
-        const nextMode = currentMode === 'checklist' ? 'note' : 'checklist';
-        this.applyMode(nextMode);
-
-        if (window.showToast) {
-          window.showToast(nextMode === 'note'
-            ? 'Đã chuyển sang chế độ Ghi chú (TakeNote) 📝'
-            : 'Đã chuyển sang chế độ Việc cần làm (CheckList) ☑');
-        }
+    // Direct 4 Bottom Tab Buttons Navigation
+    const bottomBtns = document.querySelectorAll('.bottom-tab-btn');
+    if (bottomBtns.length > 0) {
+      bottomBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const targetMode = btn.dataset.mode;
+          if (targetMode) {
+            this.applyMode(targetMode);
+            const labels = {
+              checklist: 'Đã chuyển sang chế độ Việc cần làm (CheckList) ☑',
+              note: 'Đã chuyển sang chế độ Ghi chú (TakeNote) 📝',
+              focus: 'Đã chuyển sang chế độ Phiên tập trung (Focus Session) ⏱️',
+              calculator: 'Đã chuyển sang chế độ Máy tính bỏ túi (Calculator) 🧮'
+            };
+            if (window.showToast) {
+              window.showToast(labels[targetMode] || 'Đã chuyển chế độ');
+            }
+          }
+        });
       });
     }
   }
 
   applyMode(mode) {
     const appWindow = document.getElementById('app-window');
-    const isNote = mode === 'note';
 
     if (appWindow) {
-      if (isNote) {
+      appWindow.classList.remove('mode-note', 'mode-focus', 'mode-calculator');
+      if (mode === 'note') {
         appWindow.classList.add('mode-note');
-      } else {
-        appWindow.classList.remove('mode-note');
+      } else if (mode === 'focus') {
+        appWindow.classList.add('mode-focus');
+      } else if (mode === 'calculator') {
+        appWindow.classList.add('mode-calculator');
       }
     }
+
+    // Update Bottom Tab Buttons active state
+    document.querySelectorAll('.bottom-tab-btn').forEach(btn => {
+      const isActive = btn.dataset.mode === mode;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
 
     localStorage.setItem('todolite_view_mode', mode);
     store.setState({ viewMode: mode });
-
-    if (this.btnMode) {
-      if (isNote) {
-        this.btnMode.textContent = 'List';
-        this.btnMode.setAttribute('title', 'Đang ở chế độ TakeNote (Nhấp để về CheckList)');
-        this.btnMode.setAttribute('data-tooltip', 'Đang: TakeNote (Nhấp đổi CheckList)');
-        this.btnMode.classList.add('is-note');
-      } else {
-        this.btnMode.textContent = 'Note';
-        this.btnMode.setAttribute('title', 'Đang ở chế độ CheckList (Nhấp để mở TakeNote)');
-        this.btnMode.setAttribute('data-tooltip', 'Đang: CheckList (Nhấp đổi TakeNote)');
-        this.btnMode.classList.remove('is-note');
-      }
-    }
   }
 
   applyStyle(style) {

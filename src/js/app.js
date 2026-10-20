@@ -10,6 +10,20 @@ import { DragDropManager } from './dragdrop.js';
 import { SearchManager } from './search.js';
 import { ThemeManager } from './theme.js';
 import { NoteManager } from './note.js';
+import { FocusSessionManager } from './focus.js';
+import { CalculatorManager } from './calculator.js';
+import { SettingsManager, matchesShortcut } from './settings.js';
+
+export function hideToast() {
+  const toast = document.getElementById('app-toast');
+  if (!toast) return;
+  if (window._toastTimeout) {
+    clearTimeout(window._toastTimeout);
+    window._toastTimeout = null;
+  }
+  toast.classList.remove('show', 'shake');
+}
+window.hideToast = hideToast;
 
 export function showToast(message, type = 'info') {
   const toast = document.getElementById('app-toast');
@@ -24,10 +38,19 @@ export function showToast(message, type = 'info') {
 
   if (window._toastTimeout) clearTimeout(window._toastTimeout);
   window._toastTimeout = setTimeout(() => {
-    toast.classList.remove('show', 'shake');
+    hideToast();
   }, 3200);
 }
 window.showToast = showToast;
+
+// Allow instant click-to-dismiss for toast notification
+const appToastElement = document.getElementById('app-toast');
+if (appToastElement) {
+  appToastElement.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideToast();
+  });
+}
 
 
 class TodoLiteApp {
@@ -44,6 +67,9 @@ class TodoLiteApp {
     this.searchManager = null;
     this.themeManager = null;
     this.noteManager = null;
+    this.focusSessionManager = null;
+    this.calculatorManager = null;
+    this.settingsManager = null;
 
     this.init();
   }
@@ -56,12 +82,26 @@ class TodoLiteApp {
     this.dragDropManager = new DragDropManager();
     this.searchManager = new SearchManager();
     this.noteManager = new NoteManager();
+    this.focusSessionManager = new FocusSessionManager();
+    this.calculatorManager = new CalculatorManager();
+    this.settingsManager = new SettingsManager({
+      themeManager: this.themeManager,
+      focusManager: this.focusSessionManager,
+      todoManager: this.todoManager,
+      noteManager: this.noteManager
+    });
 
     // Wire up cross-references between managers
     this.searchManager.noteManager = this.noteManager;
+    this.searchManager.settingsManager = this.settingsManager;
+    this.calculatorManager.todoManager = this.todoManager;
+    this.calculatorManager.noteManager = this.noteManager;
+    this.focusSessionManager.todoManager = this.todoManager;
+    this.noteManager.settingsManager = this.settingsManager;
 
-    // 2. Setup Window Control & Pin Actions
+    // 2. Setup Window Control & Pin Actions & Mode Shortcuts
     this.setupWindowControls();
+    this.setupModeShortcuts();
 
     // 2.1 Setup Guide Modal
     this.setupGuideModal();
@@ -80,6 +120,35 @@ class TodoLiteApp {
 
     // 4. Check initial Pin state
     this.updatePinVisuals(store.getState().isPinned);
+  }
+
+  setupModeShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      const shortcuts = this.settingsManager?.settings?.shortcuts || {
+        modeChecklist: 'Alt+1',
+        modeNote: 'Alt+2',
+        modeFocus: 'Alt+3',
+        modeCalculator: 'Alt+4'
+      };
+
+      let targetMode = null;
+      if (matchesShortcut(e, shortcuts.modeChecklist)) targetMode = 'checklist';
+      else if (matchesShortcut(e, shortcuts.modeNote)) targetMode = 'note';
+      else if (matchesShortcut(e, shortcuts.modeFocus)) targetMode = 'focus';
+      else if (matchesShortcut(e, shortcuts.modeCalculator)) targetMode = 'calculator';
+
+      if (targetMode && this.themeManager) {
+        e.preventDefault();
+        this.themeManager.applyMode(targetMode);
+        const labels = {
+          checklist: 'Đã chuyển sang chế độ Việc cần làm (CheckList) ☑',
+          note: 'Đã chuyển sang chế độ Ghi chú (TakeNote) 📝',
+          focus: 'Đã chuyển sang chế độ Phiên tập trung (Focus Session) ⏱️',
+          calculator: 'Đã chuyển sang chế độ Máy tính bỏ túi (Calculator) 🧮'
+        };
+        showToast(labels[targetMode] || 'Đã chuyển chế độ');
+      }
+    });
   }
 
   setupGuideModal() {
@@ -140,18 +209,48 @@ class TodoLiteApp {
 
     // Minimize to tray
     this.btnMinimize.addEventListener('click', async () => {
+      if (this.noteManager) {
+        await this.noteManager.saveCurrentNoteImmediately();
+      }
       await Bridge.minimizeWindow();
     });
 
-    // Close window (hides to System Tray)
+    // Close window (hides to System Tray or exits based on settings)
     this.btnClose.addEventListener('click', async () => {
-      await Bridge.hideWindow();
+      if (this.noteManager) {
+        await this.noteManager.saveCurrentNoteImmediately();
+      }
+      if (this.settingsManager?.settings?.closeAction === 'exit') {
+        await Bridge.exitApp();
+      } else {
+        await Bridge.hideWindow();
+      }
     });
+
+    // Listen for tray events
+    if (typeof window !== 'undefined') {
+      const listenEvent = window.__TAURI__?.event?.listen || window.__TAURI_INTERNALS__?.listen;
+      if (typeof listenEvent === 'function') {
+        listenEvent('tray_request_quit', async () => {
+          if (this.noteManager) {
+            await this.noteManager.saveCurrentNoteImmediately();
+          }
+        });
+
+        listenEvent('tray_open_settings', () => {
+          this.settingsManager?.openSettings();
+        });
+      }
+    }
 
     // Tauri custom drag region for titlebar
     this.titlebar.addEventListener('mousedown', (e) => {
-      // Don't drag if clicking buttons
-      if (e.target.closest('.action-btn') || e.target.closest('button') || e.target.closest('.app-badge')) {
+      // Don't drag if clicking buttons, badges or dropdown menu
+      if (
+        e.target.closest('.action-btn') || 
+        e.target.closest('button') || 
+        e.target.closest('.app-badge')
+      ) {
         return;
       }
       Bridge.startDragging();

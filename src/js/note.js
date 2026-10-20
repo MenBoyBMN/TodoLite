@@ -61,6 +61,13 @@ export class NoteManager {
     this.findDebounceTimeout = null;
     this.isFindBarOpen = false;
 
+    // Note Export elements
+    this.exportWrapper = document.getElementById('note-export-wrapper');
+    this.btnExport = document.getElementById('btn-export-note');
+    this.exportPopover = document.getElementById('note-export-popover');
+    this.btnExportMd = document.getElementById('btn-export-md');
+    this.btnExportTxt = document.getElementById('btn-export-txt');
+
     // Status bar
     this.wordCountEl = document.getElementById('note-word-count');
     this.charCountEl = document.getElementById('note-char-count');
@@ -82,6 +89,7 @@ export class NoteManager {
     this.populateEmojiGrid();
     this.bindToolbarEvents();
     this.bindEditorEvents();
+    this.bindExportEvents();
     this.bindPopoverClose();
 
     try {
@@ -99,6 +107,9 @@ export class NoteManager {
     });
 
     store.subscribe('viewMode', (mode) => {
+      if (this.exportWrapper) {
+        this.exportWrapper.style.display = mode === 'note' ? 'inline-block' : 'none';
+      }
       if (mode === 'note') {
         this.updateCurrentTabLabel();
         this.loadActiveNote();
@@ -107,17 +118,33 @@ export class NoteManager {
       }
     });
 
-    // Save on window blur or page unload
+    // Check initial viewMode for export button visibility
+    if (this.exportWrapper) {
+      this.exportWrapper.style.display = store.getState().viewMode === 'note' ? 'inline-block' : 'none';
+    }
+
+    // Save on window blur, page unload, or visibility changes
     window.addEventListener('beforeunload', () => this.saveCurrentNoteImmediately());
+    window.addEventListener('blur', () => this.saveCurrentNoteImmediately());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.saveCurrentNoteImmediately();
+      }
+    });
   }
 
   async loadInitialData() {
     const noteTabs = await Bridge.invoke('get_all_note_tabs');
     const validTabs = noteTabs || [];
+    const activeId = validTabs.length > 0 ? validTabs[0].id : null;
+    this.currentTabId = activeId;
     store.setState({
       noteTabs: validTabs,
-      activeNoteTabId: validTabs.length > 0 ? validTabs[0].id : null
+      activeNoteTabId: activeId
     });
+    if (activeId) {
+      await this.loadActiveNote();
+    }
   }
 
   initNoteTabEvents() {
@@ -176,6 +203,17 @@ export class NoteManager {
     store.setState({ activeNoteTabId: tabId });
   }
 
+  shouldConfirmDelete() {
+    try {
+      const stored = localStorage.getItem('todolite_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.confirmDelete !== undefined) return Boolean(parsed.confirmDelete);
+      }
+    } catch (_) {}
+    return true;
+  }
+
   promptCloseNoteTab(tab, e) {
     if (e) e.stopPropagation();
     const { noteTabs } = store.getState();
@@ -186,6 +224,12 @@ export class NoteManager {
     }
 
     this.pendingCloseTab = tab;
+
+    if (!this.shouldConfirmDelete()) {
+      this.executeDeleteNoteTab();
+      return;
+    }
+
     if (this.confirmTabName) {
       this.confirmTabName.textContent = tab.name;
     }
@@ -482,11 +526,7 @@ export class NoteManager {
 
     // Content input
     this.editor.addEventListener('input', () => {
-      this.cleanBlinkInjectedStyles();
-      this.updateCounts();
-      if (!this.isComposing) {
-        this.triggerAutoSave();
-      }
+      this.handleEditorInput();
     });
 
     // Paste plain text & clean up foreign styles
@@ -505,9 +545,7 @@ export class NoteManager {
         document.execCommand('insertHTML', false, html);
       }
 
-      this.cleanBlinkInjectedStyles();
-      this.updateCounts();
-      this.triggerAutoSave();
+      this.handleEditorInput();
     });
 
     // Save selection range on mouseup / keyup
@@ -544,11 +582,21 @@ export class NoteManager {
       this.updateToolbarState();
     });
 
+    this.editor.addEventListener('blur', () => {
+      this.saveCurrentNoteImmediately();
+    });
+
     // Keyboard shortcuts
     this.editor.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
         e.preventDefault();
         document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+      }
+      // Ctrl+S or Cmd+S quick save
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        this.saveCurrentNoteImmediately();
+        showToast('Đã lưu ghi chú tức thì! ✓', 'info');
       }
     });
   }
@@ -567,7 +615,7 @@ export class NoteManager {
   }
 
   repositionActivePopover() {
-    const activePopover = [this.textColorPopover, this.highlightColorPopover, this.emojiPopover].find(
+    const activePopover = [this.textColorPopover, this.highlightColorPopover, this.emojiPopover, this.exportPopover].find(
       (p) => p && p.classList.contains('open')
     );
     if (activePopover) {
@@ -621,7 +669,7 @@ export class NoteManager {
   }
 
   closeAllPopovers() {
-    [this.textColorPopover, this.highlightColorPopover, this.emojiPopover].forEach((p) => {
+    [this.textColorPopover, this.highlightColorPopover, this.emojiPopover, this.exportPopover].forEach((p) => {
       if (p) {
         p.classList.remove('open');
         p.style.transform = '';
@@ -928,6 +976,14 @@ export class NoteManager {
     this.cleanBlinkInjectedStyles();
   }
 
+  handleEditorInput() {
+    this.cleanBlinkInjectedStyles();
+    this.updateCounts();
+    if (!this.isComposing) {
+      this.triggerAutoSave();
+    }
+  }
+
   cleanBlinkInjectedStyles() {
     if (!this.editor) return;
 
@@ -1115,7 +1171,7 @@ export class NoteManager {
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
       this.saveCurrentNoteImmediately();
-    }, 500);
+    }, 300);
   }
 
   async saveCurrentNoteImmediately() {
@@ -1123,7 +1179,15 @@ export class NoteManager {
     const activeNoteTabId = this.currentTabId || store.getState().activeNoteTabId;
     if (!activeNoteTabId) return;
 
-    const content = this.editor.innerHTML;
+    let content = this.editor.innerHTML;
+    if (this.editor.querySelector('mark.note-find-highlight')) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      tempDiv.querySelectorAll('mark.note-find-highlight').forEach(mark => {
+        mark.replaceWith(...mark.childNodes);
+      });
+      content = tempDiv.innerHTML;
+    }
 
     try {
       const updatedNote = await Bridge.invoke('upsert_note', {
@@ -1147,6 +1211,9 @@ export class NoteManager {
   }
 
   async handleTabSwitch(newTabId) {
+    if (this.isFindBarOpen) {
+      this.closeFindBar();
+    }
     // 1. Save previous note immediately if switching to different tab
     if (this.currentTabId && this.currentTabId !== newTabId) {
       await this.saveCurrentNoteImmediately();
@@ -1182,7 +1249,13 @@ export class NoteManager {
     this.savedOffsets = null;
     this.updateCounts();
     this.updateToolbarState();
-    this.setSyncStatus('saved');
+
+    const plainText = (this.editor.innerText || '').trim();
+    if (plainText.length > 0) {
+      this.setSyncStatus('saved');
+    } else {
+      this.setSyncStatus('idle');
+    }
   }
 
   setSyncStatus(status) {
@@ -1199,6 +1272,9 @@ export class NoteManager {
     } else if (status === 'error') {
       this.syncIndicator.className = 'note-sync-indicator';
       this.syncText.textContent = 'Chưa lưu được';
+    } else if (status === 'idle') {
+      this.syncIndicator.className = 'note-sync-indicator saved';
+      this.syncText.textContent = 'Đã lưu tự động';
     }
   }
 
@@ -1442,5 +1518,332 @@ export class NoteManager {
       this.findCountEl.textContent = `${this.findCurrentIndex + 1}/${this.findMatches.length}`;
       this.findCountEl.classList.add('has-results');
     }
+  }
+
+  // ----------------- EXPORT ACTIVE NOTE -----------------
+  bindExportEvents() {
+    if (this.btnExport && this.exportPopover) {
+      this.btnExport.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.openPopover(this.exportPopover);
+      });
+    }
+
+    if (this.btnExportMd) {
+      this.btnExportMd.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.exportActiveNote('md');
+      });
+    }
+
+    if (this.btnExportTxt) {
+      this.btnExportTxt.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.exportActiveNote('txt');
+      });
+    }
+  }
+
+  async getExportDirectory() {
+    // 1. From attached settingsManager
+    if (this.settingsManager?.settings?.exportDirectory) {
+      return this.settingsManager.settings.exportDirectory.trim();
+    }
+    // 2. From localStorage
+    try {
+      const stored = localStorage.getItem('todolite_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.exportDirectory && parsed.exportDirectory.trim()) {
+          return parsed.exportDirectory.trim();
+        }
+      }
+    } catch (_) {}
+    // 3. Fallback to default directory from Tauri Bridge
+    try {
+      const defaultDir = await Bridge.getDefaultExportDirectory();
+      if (defaultDir) return defaultDir.trim();
+    } catch (_) {}
+    return '';
+  }
+
+  async exportActiveNote(format = 'md') {
+    // 1. Flush any pending edits to database & state
+    await this.saveCurrentNoteImmediately();
+
+    const { noteTabs, activeNoteTabId } = store.getState();
+    const currentTab = noteTabs.find((t) => t.id === (this.currentTabId || activeNoteTabId));
+    const tabName = currentTab ? currentTab.name.trim() : 'Ghi chú';
+
+    // Sanitize filename for Windows filesystem (remove invalid chars: \ / : * ? " < > |)
+    const sanitizedFilename = tabName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Ghi_chu';
+
+    let htmlContent = this.editor.innerHTML || '';
+    if (this.editor.querySelector('mark.note-find-highlight')) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.querySelectorAll('mark.note-find-highlight').forEach(mark => {
+        mark.replaceWith(...mark.childNodes);
+      });
+      htmlContent = tempDiv.innerHTML;
+    }
+
+    let content = '';
+    let ext = '';
+    let mime = '';
+
+    if (format === 'md') {
+      content = this.convertHtmlToMarkdown(htmlContent, tabName);
+      ext = 'md';
+      mime = 'text/markdown;charset=utf-8';
+    } else {
+      content = this.convertHtmlToPlainText(htmlContent, tabName);
+      ext = 'txt';
+      mime = 'text/plain;charset=utf-8';
+    }
+
+    // Prepend UTF-8 BOM (\uFEFF) to guarantee 100% Vietnamese diacritic preservation on Windows & all platforms
+    const finalData = '\uFEFF' + content;
+    const filename = `${sanitizedFilename}.${ext}`;
+
+    const exportDir = await this.getExportDirectory();
+    let savedFilePath = null;
+
+    if (exportDir) {
+      try {
+        savedFilePath = await Bridge.saveExportedFile(exportDir, filename, finalData);
+      } catch (nativeErr) {
+        console.warn('Native saveExportedFile failed, falling back to browser download:', nativeErr);
+      }
+    }
+
+    this.closeAllPopovers();
+
+    if (savedFilePath) {
+      showToast(`Đã xuất ghi chú "${filename}" vào thư mục cài đặt! 📥`, 'info');
+    } else {
+      // Fallback for browser download
+      const blob = new Blob([finalData], { type: mime });
+      const downloadUrl = URL.createObjectURL(blob);
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.href = downloadUrl;
+      downloadAnchor.download = filename;
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
+
+      showToast(`Đã xuất ghi chú "${tabName}" (.${ext}) thành công! 📥`, 'info');
+    }
+  }
+
+  convertHtmlToMarkdown(html, noteTitle) {
+    if (!html || !html.trim()) {
+      return `# ${noteTitle}\n\n*(Ghi chú trống)*\n`;
+    }
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+
+    const processNode = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        // Convert non-breaking spaces to standard spaces
+        return node.nodeValue.replace(/\u00a0/g, ' ');
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+      }
+
+      const tag = node.tagName.toLowerCase();
+      let inner = '';
+      for (const child of node.childNodes) {
+        inner += processNode(child);
+      }
+
+      switch (tag) {
+        case 'h1':
+          return `\n\n# ${inner.trim()}\n\n`;
+        case 'h2':
+          return `\n\n## ${inner.trim()}\n\n`;
+        case 'h3':
+          return `\n\n### ${inner.trim()}\n\n`;
+        case 'h4':
+          return `\n\n#### ${inner.trim()}\n\n`;
+        case 'h5':
+        case 'h6':
+          return `\n\n##### ${inner.trim()}\n\n`;
+        case 'b':
+        case 'strong': {
+          const trimmed = inner.trim();
+          if (!trimmed) return inner;
+          const lead = inner.match(/^\s*/)[0];
+          const trail = inner.match(/\s*$/)[0];
+          return `${lead}**${trimmed}**${trail}`;
+        }
+        case 'i':
+        case 'em': {
+          const trimmed = inner.trim();
+          if (!trimmed) return inner;
+          const lead = inner.match(/^\s*/)[0];
+          const trail = inner.match(/\s*$/)[0];
+          return `${lead}*${trimmed}*${trail}`;
+        }
+        case 'u': {
+          const trimmed = inner.trim();
+          if (!trimmed) return inner;
+          const lead = inner.match(/^\s*/)[0];
+          const trail = inner.match(/\s*$/)[0];
+          return `${lead}<u>${trimmed}</u>${trail}`;
+        }
+        case 's':
+        case 'strike':
+        case 'del': {
+          const trimmed = inner.trim();
+          if (!trimmed) return inner;
+          const lead = inner.match(/^\s*/)[0];
+          const trail = inner.match(/\s*$/)[0];
+          return `${lead}~~${trimmed}~~${trail}`;
+        }
+        case 'code': {
+          const trimmed = inner.trim();
+          if (!trimmed) return inner;
+          const lead = inner.match(/^\s*/)[0];
+          const trail = inner.match(/\s*$/)[0];
+          return `${lead}\`${trimmed}\`${trail}`;
+        }
+        case 'pre':
+          return `\n\n\`\`\`\n${inner.trim()}\n\`\`\`\n\n`;
+        case 'blockquote':
+          return `\n\n> ${inner.trim().replace(/\n/g, '\n> ')}\n\n`;
+        case 'hr':
+          return '\n\n---\n\n';
+        case 'br':
+          return '\n';
+        case 'li': {
+          const parentTag = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+          let indent = '';
+          let p = node.parentNode ? node.parentNode.parentNode : null;
+          while (p && p !== tempDiv) {
+            if (p.tagName && ['ul', 'ol'].includes(p.tagName.toLowerCase())) {
+              indent += '  ';
+            }
+            p = p.parentNode;
+          }
+          if (parentTag === 'ol') {
+            let index = 1;
+            let prev = node.previousElementSibling;
+            while (prev) {
+              if (prev.tagName.toLowerCase() === 'li') index++;
+              prev = prev.previousElementSibling;
+            }
+            return `\n${indent}${index}. ${inner.trim()}`;
+          }
+          return `\n${indent}- ${inner.trim()}`;
+        }
+        case 'ul':
+        case 'ol':
+          return `\n${inner}\n`;
+        case 'p':
+        case 'div': {
+          const trimmed = inner.trim();
+          if (!trimmed) {
+            return '\n';
+          }
+          return `\n\n${inner}\n\n`;
+        }
+        default:
+          return inner;
+      }
+    };
+
+    let md = processNode(tempDiv);
+    // Normalize newlines: max 2 consecutive \n
+    md = md.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+
+    // Check if document already begins with this heading
+    const firstLine = md.split('\n')[0].trim();
+    if (firstLine === `# ${noteTitle}` || firstLine === `# ${noteTitle.toUpperCase()}`) {
+      return md + '\n';
+    }
+    return `# ${noteTitle}\n\n${md}\n`;
+  }
+
+  convertHtmlToPlainText(html, noteTitle) {
+    if (!html || !html.trim()) {
+      const border = '='.repeat(Math.max(noteTitle.length, 28));
+      return `${noteTitle}\n${border}\n\n(Ghi chú trống)\n`;
+    }
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+
+    const processNode = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.nodeValue.replace(/\u00a0/g, ' ');
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+      }
+
+      const tag = node.tagName.toLowerCase();
+      let inner = '';
+      for (const child of node.childNodes) {
+        inner += processNode(child);
+      }
+
+      switch (tag) {
+        case 'h1':
+          return `\n\n=== ${inner.trim().toUpperCase()} ===\n\n`;
+        case 'h2':
+          return `\n\n--- ${inner.trim()} ---\n\n`;
+        case 'h3':
+          return `\n\n[ ${inner.trim()} ]\n\n`;
+        case 'hr':
+          return '\n\n' + '-'.repeat(40) + '\n\n';
+        case 'br':
+          return '\n';
+        case 'li': {
+          const parentTag = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+          let indent = '';
+          let p = node.parentNode ? node.parentNode.parentNode : null;
+          while (p && p !== tempDiv) {
+            if (p.tagName && ['ul', 'ol'].includes(p.tagName.toLowerCase())) {
+              indent += '  ';
+            }
+            p = p.parentNode;
+          }
+          if (parentTag === 'ol') {
+            let index = 1;
+            let prev = node.previousElementSibling;
+            while (prev) {
+              if (prev.tagName.toLowerCase() === 'li') index++;
+              prev = prev.previousElementSibling;
+            }
+            return `\n${indent}${index}. ${inner.trim()}`;
+          }
+          return `\n${indent}• ${inner.trim()}`;
+        }
+        case 'ul':
+        case 'ol':
+          return `\n${inner}\n`;
+        case 'p':
+        case 'div': {
+          const trimmed = inner.trim();
+          if (!trimmed) return '\n';
+          return `\n\n${inner}\n\n`;
+        }
+        default:
+          return inner;
+      }
+    };
+
+    let text = processNode(tempDiv);
+    text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+
+    const border = '='.repeat(Math.max(noteTitle.length, 30));
+    return `${noteTitle}\n${border}\n\n${text}\n`;
   }
 }

@@ -7,9 +7,10 @@ use tauri::{
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let toggle_i = MenuItem::with_id(app, "toggle_visible", "Hiện / Ẩn TodoLite", true, None::<&str>)?;
     let pin_i = MenuItem::with_id(app, "toggle_pin", "📌 Luôn hiển thị trên cùng", true, None::<&str>)?;
+    let settings_i = MenuItem::with_id(app, "open_settings", "⚙️ Cài đặt hệ thống...", true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Thoát", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app, &[&toggle_i, &pin_i, &quit_i])?;
+    let menu = Menu::with_items(app, &[&toggle_i, &pin_i, &settings_i, &quit_i])?;
 
     let _tray = TrayIconBuilder::new()
         .icon(app.default_window_icon().cloned().unwrap())
@@ -19,13 +20,14 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "toggle_visible" => {
                 if let Some(window) = app.get_webview_window("main") {
-                    if let Ok(visible) = window.is_visible() {
-                        if visible {
-                            let _ = window.hide();
-                        } else {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+                    let is_visible = window.is_visible().unwrap_or(false);
+                    let is_minimized = window.is_minimized().unwrap_or(false);
+                    if is_visible && !is_minimized {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
                     }
                 }
             }
@@ -39,8 +41,25 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                     let _ = window.emit("tray_pin_toggled", next_pinned);
                 }
             }
+            "open_settings" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                    let _ = window.emit("tray_open_settings", ());
+                }
+            }
             "quit" => {
-                app.exit(0);
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.emit("tray_request_quit", ());
+                    let app_handle = app.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(300));
+                        app_handle.exit(0);
+                    });
+                } else {
+                    app.exit(0);
+                }
             }
             _ => {}
         })
@@ -53,13 +72,14 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             {
                 let app = tray.app_handle();
                 if let Some(window) = app.get_webview_window("main") {
-                    if let Ok(visible) = window.is_visible() {
-                        if visible {
-                            let _ = window.hide();
-                        } else {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+                    let is_visible = window.is_visible().unwrap_or(false);
+                    let is_minimized = window.is_minimized().unwrap_or(false);
+                    if is_visible && !is_minimized {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
                     }
                 }
             }

@@ -5,6 +5,7 @@
 import { store } from './state.js';
 import { Bridge } from './bridge.js';
 import { showToast } from './app.js';
+import { matchesShortcut } from './settings.js';
 
 export class SearchManager {
   constructor() {
@@ -16,6 +17,7 @@ export class SearchManager {
     this.resultsList = document.getElementById('search-results');
 
     this.noteManager = null; // Will be set from app.js
+    this.settingsManager = null; // Will be set from app.js
     this.debounceTimeout = null;
     this.initEvents();
   }
@@ -58,8 +60,9 @@ export class SearchManager {
           this.closeSearch();
         }
       }
-      // Ctrl+F or Cmd+F opens search
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      // Customizable search shortcut (default: Ctrl+F)
+      const searchShortcut = this.settingsManager?.settings?.shortcuts?.quickSearch || 'Ctrl+F';
+      if (matchesShortcut(e, searchShortcut)) {
         e.preventDefault();
         const viewMode = store.getState().viewMode || 'checklist';
         if (viewMode === 'note' && this.noteManager) {

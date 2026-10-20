@@ -344,7 +344,44 @@ export class TodoManager {
     store.setState({ todos: updated });
   }
 
+  async handleToggleTodo(todoId) {
+    return this.handleToggle(todoId);
+  }
+
+  async handleCreateTodoDirect(text, priority = 'none', dueDate = null) {
+    const { activeTabId, todos, tabs } = store.getState();
+    const tabId = activeTabId || (tabs && tabs[0] ? tabs[0].id : null);
+    if (!tabId) return null;
+
+    const newTodo = await Bridge.invoke('create_todo', {
+      tab_id: tabId,
+      text: text.substring(0, 200),
+      priority,
+      due_date: dueDate
+    });
+
+    const updatedTodos = [newTodo, ...todos];
+    store.setState({ todos: updatedTodos });
+    return newTodo;
+  }
+
+  shouldConfirmDelete() {
+    try {
+      const stored = localStorage.getItem('todolite_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.confirmDelete !== undefined) return Boolean(parsed.confirmDelete);
+      }
+    } catch (_) {}
+    return true;
+  }
+
   async handleDelete(todoId, itemEl) {
+    if (this.shouldConfirmDelete()) {
+      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa công việc này không?');
+      if (!confirmed) return;
+    }
+
     itemEl.style.transition = 'all 0.2s ease-out';
     itemEl.style.opacity = '0';
     itemEl.style.transform = 'scale(0.9) translateX(20px)';

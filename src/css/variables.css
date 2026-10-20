@@ -44,6 +44,7 @@
 
 /* Light Mode: Frosted Ice & Crystal Glass */
 :root, [data-theme="light"] {
+  color-scheme: light;
   /* Translucent Glass Base */
   --bg-app: rgba(248, 250, 252, 0.78);
   --bg-window-mesh: radial-gradient(circle at 10% 0%, rgba(254, 243, 199, 0.45) 0%, transparent 40%),
@@ -89,10 +90,16 @@
   --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   --shadow-pinned: 0 24px 60px -10px rgba(0, 0, 0, 0.18), 0 0 30px rgba(244, 63, 94, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+  /* Popover & Floating Dropdowns (High Opacity & High Contrast) */
+  --bg-popover: rgba(255, 255, 255, 0.96);
+  --border-popover: rgba(0, 0, 0, 0.12);
+  --shadow-popover: 0 16px 36px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 /* Dark Mode: Deep Space Obsidian Glassmorphism */
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Translucent Glass Base */
   --bg-app: rgba(15, 20, 32, 0.72);
   --bg-window-mesh: radial-gradient(circle at 10% 0%, rgba(245, 158, 11, 0.14) 0%, transparent 45%),
@@ -138,4 +145,9 @@
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.16);
   --shadow-pinned: 0 30px 75px rgba(0, 0, 0, 0.65), 0 0 30px rgba(244, 63, 94, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+
+  /* Popover & Floating Dropdowns (Deep Obsidian & Crisp Legibility) */
+  --bg-popover: rgba(18, 24, 38, 0.96);
+  --border-popover: rgba(255, 255, 255, 0.16);
+  --shadow-popover: 0 16px 45px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }

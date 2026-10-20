@@ -3,34 +3,6 @@
    High-end Glassmorphism Aesthetics & Vietnamese Typography Support
    ========================================================================== */
 
-/* Mode Toggle Badge in Titlebar */
-.app-badge.mode-badge {
-  background: rgba(168, 85, 247, 0.15);
-  color: #a855f7;
-  border-color: rgba(168, 85, 247, 0.3);
-  margin-left: 2px;
-}
-
-.app-badge.mode-badge:hover {
-  background: #a855f7;
-  color: #ffffff;
-  border-color: #a855f7;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
-}
-
-.app-badge.mode-badge.is-note {
-  background: rgba(16, 185, 129, 0.16);
-  color: #10b981;
-  border-color: rgba(16, 185, 129, 0.35);
-}
-
-.app-badge.mode-badge.is-note:hover {
-  background: #10b981;
-  color: #ffffff;
-  border-color: #10b981;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-}
-
 /* Visibility Control between Checklist & Note Modes */
 #app-window.mode-note #checklist-tab-nav {
   display: none !important;
@@ -42,6 +14,10 @@
 
 #app-window.mode-note #note-tab-nav {
   display: flex !important;
+}
+
+#app-window:not(.mode-note) .note-editor-area {
+  display: none !important;
 }
 
 #app-window.mode-note .todo-scroll-area {
@@ -170,9 +146,26 @@
   color: var(--text-primary);
 }
 
-.note-select option {
-  background: var(--bg-app);
-  color: var(--text-primary);
+[data-theme="dark"] .note-select {
+  color-scheme: dark;
+  background-color: #1a2234;
+  color: #f8fafc;
+}
+
+[data-theme="light"] .note-select {
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .note-select option {
+  background-color: #1a2234 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] .note-select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Popover Dropdown Panels (Color, Highlight, Emoji) */
@@ -186,12 +179,12 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  background: var(--bg-app);
-  border: 1px solid var(--border-color);
+  background: var(--bg-popover, rgba(18, 24, 38, 0.96));
+  border: 1px solid var(--border-popover, var(--border-color));
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-window);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-popover, var(--shadow-window));
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
   padding: 8px;
   z-index: 100;
   animation: popoverFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
@@ -296,6 +289,73 @@
 .emoji-item:hover {
   background: var(--bg-card-hover);
   transform: scale(1.2);
+}
+
+/* ==========================================================================
+   Note Export Popover Menu
+   ========================================================================== */
+.note-export-btn:hover {
+  color: var(--accent-color) !important;
+  background: var(--accent-subtle) !important;
+}
+
+.note-export-popover {
+  min-width: 215px;
+  padding: 8px 6px;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.note-export-popover.open {
+  display: flex !important;
+}
+
+.note-export-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--trans-fast);
+  user-select: none;
+}
+
+.note-export-option-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color-subtle);
+  transform: translateX(2px);
+}
+
+.export-opt-icon {
+  font-size: 17px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+}
+
+.export-opt-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.export-opt-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.25;
 }
 
 /* Editor Scroll Wrapper & ContentEditable Area */

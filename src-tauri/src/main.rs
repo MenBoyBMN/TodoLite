@@ -4,6 +4,9 @@
 mod db;
 mod tray;
 
+use std::str::FromStr;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+
 use db::{DbState, NoteItem, ReorderItem, TabItem, TodoItem};
 use tauri::{Manager, State, WebviewWindow};
 
@@ -129,6 +132,95 @@ fn hide_window(window: WebviewWindow) -> Result<(), String> {
     window.hide().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn exit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
+#[tauri::command]
+fn register_global_toggle_shortcut(shortcut: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    let _ = app_handle.global_shortcut().unregister_all();
+    let s = shortcut.trim();
+    if s.is_empty() {
+        return Ok(());
+    }
+    let parsed = Shortcut::from_str(s).map_err(|e| format!("Invalid shortcut format: {:?}", e))?;
+    app_handle.global_shortcut().register(parsed).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ----------------- FILE & EXPORT ACTIONS -----------------
+#[tauri::command]
+fn get_default_export_directory() -> Result<String, String> {
+    let base = std::env::var("USERPROFILE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    let export_dir = base.join("Documents").join("TodoLite_Exports");
+    if !export_dir.exists() {
+        let _ = std::fs::create_dir_all(&export_dir);
+    }
+    Ok(export_dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn pick_export_directory(default_path: Option<String>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::FileDialog::new().set_title("Chọn thư mục xuất tệp TodoLite");
+    if let Some(ref path) = default_path {
+        if !path.trim().is_empty() {
+            let p = std::path::Path::new(path);
+            if p.exists() {
+                dialog = dialog.set_directory(p);
+            }
+        }
+    }
+    let res = dialog.pick_folder();
+    Ok(res.map(|p| p.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn save_exported_file(
+    directory: String,
+    filename: String,
+    content: String,
+) -> Result<String, String> {
+    let dir_path = std::path::Path::new(&directory);
+    if !dir_path.exists() {
+        std::fs::create_dir_all(dir_path).map_err(|e| e.to_string())?;
+    }
+    let full_path = dir_path.join(&filename);
+    std::fs::write(&full_path, content.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(full_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn open_export_directory(directory: String) -> Result<(), String> {
+    let path = std::path::Path::new(&directory);
+    if !path.exists() {
+        let _ = std::fs::create_dir_all(path);
+    }
+    std::process::Command::new("explorer")
+        .arg(&directory)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn reset_database(state: State<DbState>) -> Result<(), String> {
+    state.reset_database().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn restore_backup(
+    tabs: Vec<TabItem>,
+    todos: Vec<TodoItem>,
+    note_tabs: Vec<TabItem>,
+    notes: Vec<NoteItem>,
+    state: State<DbState>,
+) -> Result<(), String> {
+    state.restore_backup(tabs, todos, note_tabs, notes).map_err(|e| e.to_string())
+}
+
 fn main() {
     let db = DbState::new().expect("Failed to initialize SQLite database");
 
@@ -140,6 +232,25 @@ fn main() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let is_visible = window.is_visible().unwrap_or(false);
+                            let is_minimized = window.is_minimized().unwrap_or(false);
+                            if is_visible && !is_minimized {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(),
+        )
         .manage(db)
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -174,7 +285,29 @@ fn main() {
             set_always_on_top,
             minimize_window,
             hide_window,
+            exit_app,
+            register_global_toggle_shortcut,
+            get_default_export_directory,
+            pick_export_directory,
+            save_exported_file,
+            open_export_directory,
+            reset_database,
+            restore_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running TodoLite application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shortcut_parsing() {
+        assert!(Shortcut::from_str("Alt+Space").is_ok(), "Alt+Space should parse");
+        assert!(Shortcut::from_str("Ctrl+Shift+T").is_ok(), "Ctrl+Shift+T should parse");
+        assert!(Shortcut::from_str("Control+Shift+T").is_ok(), "Control+Shift+T should parse");
+        assert!(Shortcut::from_str("Alt+1").is_ok(), "Alt+1 should parse");
+        assert!(Shortcut::from_str("F11").is_ok(), "F11 should parse");
+    }
 }

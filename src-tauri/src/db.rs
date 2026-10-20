@@ -50,6 +50,7 @@ impl DbState {
         fs::create_dir_all(&app_dir).ok();
         let db_path = app_dir.join("todolite.db");
         let conn = Connection::open(db_path)?;
+        let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
 
         let db = DbState {
             conn: Mutex::new(conn),
@@ -60,6 +61,8 @@ impl DbState {
 
     fn init_tables(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
+
+        conn.execute("PRAGMA foreign_keys = ON;", [])?;
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS tabs (
@@ -95,16 +98,6 @@ impl DbState {
         )?;
 
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS notes (
-                id TEXT PRIMARY KEY,
-                tab_id TEXT NOT NULL UNIQUE,
-                content TEXT NOT NULL DEFAULT '',
-                updated_at TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        conn.execute(
             "CREATE TABLE IF NOT EXISTS note_tabs (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -113,6 +106,48 @@ impl DbState {
             )",
             [],
         )?;
+
+        // Ensure notes table references note_tabs (id) correctly and migrate if old schema references tabs (id)
+        let notes_sql: Option<String> = conn.query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='notes'",
+            [],
+            |r| r.get(0),
+        ).ok();
+
+        if let Some(sql) = notes_sql {
+            if sql.contains("REFERENCES tabs") || !sql.contains("REFERENCES note_tabs") {
+                let _ = conn.execute("PRAGMA foreign_keys = OFF;", []);
+                let _ = conn.execute(
+                    "CREATE TABLE IF NOT EXISTS notes_migrated (
+                        id TEXT PRIMARY KEY,
+                        tab_id TEXT NOT NULL UNIQUE,
+                        content TEXT NOT NULL DEFAULT '',
+                        updated_at TEXT NOT NULL,
+                        FOREIGN KEY (tab_id) REFERENCES note_tabs (id) ON DELETE CASCADE
+                    )",
+                    [],
+                );
+                let _ = conn.execute(
+                    "INSERT OR IGNORE INTO notes_migrated (id, tab_id, content, updated_at)
+                     SELECT id, tab_id, content, updated_at FROM notes",
+                    [],
+                );
+                let _ = conn.execute("DROP TABLE notes;", []);
+                let _ = conn.execute("ALTER TABLE notes_migrated RENAME TO notes;", []);
+                let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
+            }
+        } else {
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS notes (
+                    id TEXT PRIMARY KEY,
+                    tab_id TEXT NOT NULL UNIQUE,
+                    content TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (tab_id) REFERENCES note_tabs (id) ON DELETE CASCADE
+                )",
+                [],
+            )?;
+        }
 
         // Insert initial tab if empty
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM tabs", [], |r| r.get(0))?;
@@ -588,6 +623,80 @@ impl DbState {
             content,
             updated_at,
         })
+    }
+
+    pub fn reset_database(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let _ = conn.execute("PRAGMA foreign_keys = OFF;", []);
+        let _ = conn.execute("DELETE FROM todos;", []);
+        let _ = conn.execute("DELETE FROM tabs;", []);
+        let _ = conn.execute("DELETE FROM notes;", []);
+        let _ = conn.execute("DELETE FROM note_tabs;", []);
+        let _ = conn.execute("DELETE FROM settings;", []);
+        let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
+
+        drop(conn);
+        self.init_tables()?;
+        Ok(())
+    }
+
+    pub fn restore_backup(
+        &self,
+        tabs: Vec<TabItem>,
+        todos: Vec<TodoItem>,
+        note_tabs: Vec<TabItem>,
+        notes: Vec<NoteItem>,
+    ) -> Result<()> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+
+        let _ = tx.execute("PRAGMA foreign_keys = OFF;", []);
+        let _ = tx.execute("DELETE FROM todos;", []);
+        let _ = tx.execute("DELETE FROM tabs;", []);
+        let _ = tx.execute("DELETE FROM notes;", []);
+        let _ = tx.execute("DELETE FROM note_tabs;", []);
+
+        for tab in tabs {
+            tx.execute(
+                "INSERT INTO tabs (id, name, sort_order, created_at) VALUES (?1, ?2, ?3, ?4)",
+                params![tab.id, tab.name, tab.sort_order, tab.created_at],
+            )?;
+        }
+
+        for todo in todos {
+            tx.execute(
+                "INSERT INTO todos (id, tab_id, text, completed, priority, sort_order, due_date, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    todo.id,
+                    todo.tab_id,
+                    todo.text,
+                    todo.completed,
+                    todo.priority,
+                    todo.sort_order,
+                    todo.due_date,
+                    todo.created_at
+                ],
+            )?;
+        }
+
+        for ntab in note_tabs {
+            tx.execute(
+                "INSERT INTO note_tabs (id, name, sort_order, created_at) VALUES (?1, ?2, ?3, ?4)",
+                params![ntab.id, ntab.name, ntab.sort_order, ntab.created_at],
+            )?;
+        }
+
+        for note in notes {
+            tx.execute(
+                "INSERT INTO notes (id, tab_id, content, updated_at) VALUES (?1, ?2, ?3, ?4)",
+                params![note.id, note.tab_id, note.content, note.updated_at],
+            )?;
+        }
+
+        let _ = tx.execute("PRAGMA foreign_keys = ON;", []);
+        tx.commit()?;
+        Ok(())
     }
 }
 
