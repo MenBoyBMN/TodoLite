@@ -5,6 +5,7 @@
 
 import { store } from './state.js';
 import { Bridge } from './bridge.js';
+import { confirmDialog } from './dialog.js';
 
 export class TodoManager {
   constructor() {
@@ -378,7 +379,12 @@ export class TodoManager {
 
   async handleDelete(todoId, itemEl) {
     if (this.shouldConfirmDelete()) {
-      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa công việc này không?');
+      const confirmed = await confirmDialog({
+        title: 'Xóa công việc?',
+        message: 'Công việc này sẽ bị xóa khỏi danh sách của bạn.',
+        confirmLabel: 'Xóa công việc',
+        danger: true
+      });
       if (!confirmed) return;
     }
 

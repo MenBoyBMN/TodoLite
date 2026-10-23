@@ -5,6 +5,7 @@
 
 import { store } from './state.js';
 import { showToast } from './app.js';
+import { confirmDialog } from './dialog.js';
 
 export class FocusSessionManager {
   constructor() {
@@ -473,8 +474,13 @@ export class FocusSessionManager {
     showToast('Chúc mừng! Bạn đã hoàn thành trọn vẹn mục tiêu thời gian hôm nay 🎉', 'info');
   }
 
-  resetSession() {
-    if (confirm('Bạn có chắc chắn muốn kết thúc phiên làm việc này không?')) {
+  async resetSession() {
+    const confirmed = await confirmDialog({
+      title: 'Kết thúc phiên tập trung?',
+      message: 'Thời gian của phiên hiện tại sẽ được đặt lại.',
+      confirmLabel: 'Kết thúc phiên'
+    });
+    if (confirmed) {
       this.stopTimer();
       this.stopAmbientSound();
       this.status = 'idle';

@@ -5,6 +5,7 @@
 
 import { store } from './state.js';
 import { showToast } from './app.js';
+import { confirmDialog, promptDialog } from './dialog.js';
 
 export class CalculatorManager {
   constructor() {
@@ -434,8 +435,14 @@ export class CalculatorManager {
     }
   }
 
-  clearHistory() {
-    if (confirm('Bạn có muốn xóa toàn bộ lịch sử tính toán không?')) {
+  async clearHistory() {
+    const confirmed = await confirmDialog({
+      title: 'Xóa lịch sử tính toán?',
+      message: 'Toàn bộ kết quả đã lưu sẽ bị xóa khỏi lịch sử.',
+      confirmLabel: 'Xóa lịch sử',
+      danger: true
+    });
+    if (confirmed) {
       this.history = [];
       this.saveHistory();
       showToast('Đã xóa lịch sử tính toán', 'info');
@@ -462,7 +469,13 @@ export class CalculatorManager {
 
   async exportToTodo() {
     const formatted = this.formatNumber(this.displayValue);
-    const text = prompt('Tạo việc cần làm với số tiền / kết quả này:', `Chi phí: ${formatted}`);
+    const text = await promptDialog({
+      title: 'Tạo việc cần làm',
+      message: 'Chỉnh sửa nội dung trước khi thêm vào danh sách.',
+      defaultValue: `Chi phí: ${formatted}`,
+      placeholder: 'Nhập việc cần làm...',
+      confirmLabel: 'Thêm việc'
+    });
     if (!text || !text.trim()) return;
 
     if (this.todoManager) {

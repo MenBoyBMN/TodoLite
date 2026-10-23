@@ -7,6 +7,7 @@
 import { store } from './state.js';
 import { showToast } from './app.js';
 import { Bridge } from './bridge.js';
+import { confirmDialog } from './dialog.js';
 
 export const DEFAULT_SHORTCUTS = {
   globalToggleApp: 'Ctrl+Alt+T',
@@ -751,10 +752,20 @@ export class SettingsManager {
   }
 
   async resetAllData() {
-    const firstCheck = confirm('CẢNH BÁO: Thao tác này sẽ xóa sạch toàn bộ công việc, ghi chú và đặt lại cài đặt về mặc định!\n\nBạn có chắc chắn muốn tiếp tục không?');
+    const firstCheck = await confirmDialog({
+      title: 'Đặt lại toàn bộ dữ liệu?',
+      message: 'Tất cả công việc, ghi chú và cài đặt sẽ trở về trạng thái mặc định.',
+      confirmLabel: 'Tiếp tục',
+      danger: true
+    });
     if (!firstCheck) return;
 
-    const secondCheck = confirm('Xác nhận lần cuối: Mọi dữ liệu chưa được sao lưu sẽ mất vĩnh viễn.\n\nĐồng ý xóa hết dữ liệu?');
+    const secondCheck = await confirmDialog({
+      title: 'Xác nhận xóa vĩnh viễn',
+      message: 'Dữ liệu chưa sao lưu sẽ không thể khôi phục. Bạn vẫn muốn xóa tất cả?',
+      confirmLabel: 'Xóa tất cả',
+      danger: true
+    });
     if (!secondCheck) return;
 
     try {
