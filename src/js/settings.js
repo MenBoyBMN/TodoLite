@@ -65,6 +65,7 @@ export const DEFAULT_SETTINGS = {
   fontSize: 'normal', // 'small' | 'normal' | 'large'
   glassBlur: true,
   alwaysOnTop: true,
+  autoStart: false,
   closeAction: 'tray', // 'tray' | 'exit'
   confirmDelete: true,
   focusWorkMinutes: 25,
@@ -104,11 +105,26 @@ export class SettingsManager {
 
   async init() {
     this.loadSettings();
+    await this.syncAutoStart();
     await this.resolveExportDirectory();
     await this.syncGlobalShortcut();
     this.applyAllSettings();
     this.initEventListeners();
     this.syncControlsWithState();
+  }
+
+  async syncAutoStart() {
+    try {
+      const isAutoStartEnabled = await Bridge.getAutoStart();
+      if (this.settings.autoStart) {
+        await Bridge.setAutoStart(true);
+      } else if (isAutoStartEnabled) {
+        this.settings.autoStart = true;
+        this.saveSettings();
+      }
+    } catch (e) {
+      console.warn('Could not sync auto-start setting:', e);
+    }
   }
 
   async syncGlobalShortcut() {
@@ -162,6 +178,11 @@ export class SettingsManager {
     const storedPin = localStorage.getItem('todolite_always_on_top');
     if (storedPin !== null) {
       this.settings.alwaysOnTop = storedPin === 'true';
+    }
+
+    const storedAutoStart = localStorage.getItem('todolite_autostart');
+    if (storedAutoStart !== null) {
+      this.settings.autoStart = storedAutoStart === 'true';
     }
 
     const storedFocus = localStorage.getItem('todolite_focus_settings');
@@ -361,6 +382,28 @@ export class SettingsManager {
         store.setState({ isPinned: val });
         const btnPin = document.getElementById('btn-pin-always-on-top');
         if (btnPin) btnPin.classList.toggle('active', val);
+      });
+    }
+
+    // Auto Start with Windows Toggle
+    const autoStartToggle = document.getElementById('setting-auto-start');
+    if (autoStartToggle) {
+      autoStartToggle.addEventListener('change', async (e) => {
+        const val = e.target.checked;
+        this.settings.autoStart = val;
+        this.saveSettings();
+        localStorage.setItem('todolite_autostart', JSON.stringify(val));
+        try {
+          await Bridge.setAutoStart(val);
+          if (val) {
+            showToast('Đã bật tự động khởi động cùng Windows 🚀', 'info');
+          } else {
+            showToast('Đã tắt tự động khởi động cùng Windows', 'info');
+          }
+        } catch (err) {
+          console.error('Failed to set autostart:', err);
+          showToast('Không thể cài đặt tự khởi động: ' + err.message, 'error');
+        }
       });
     }
 
@@ -578,6 +621,7 @@ export class SettingsManager {
     setChecked('setting-glass-blur', this.settings.glassBlur);
 
     setChecked('setting-always-on-top', this.settings.alwaysOnTop);
+    setChecked('setting-auto-start', this.settings.autoStart);
     setVal('setting-close-action', this.settings.closeAction);
     setChecked('setting-confirm-delete', this.settings.confirmDelete);
 
@@ -770,6 +814,7 @@ export class SettingsManager {
 
     try {
       await Bridge.invoke('reset_database');
+      await Bridge.setAutoStart(false);
       localStorage.clear();
       this.settings = { ...DEFAULT_SETTINGS };
       this.saveSettings();

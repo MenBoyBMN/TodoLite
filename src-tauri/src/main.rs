@@ -5,6 +5,8 @@ mod db;
 mod tray;
 
 use std::str::FromStr;
+#[cfg(target_os = "windows")]
+use winreg::{enums::*, RegKey};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use db::{DbState, NoteItem, ReorderItem, TabItem, TodoItem};
@@ -221,6 +223,63 @@ fn restore_backup(
     state.restore_backup(tabs, todos, note_tabs, notes).map_err(|e| e.to_string())
 }
 
+// ----------------- AUTOSTART ACTIONS -----------------
+#[tauri::command]
+fn get_autostart() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let path = r"Software\Microsoft\Windows\CurrentVersion\Run";
+        if let Ok(run_key) = hkcu.open_subkey(path) {
+            let val: Result<String, _> = run_key.get_value("TodoLite");
+            if let Ok(cmd) = val {
+                return Ok(!cmd.trim().is_empty());
+            }
+        }
+        Ok(false)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+fn set_autostart(enable: bool) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let path = r"Software\Microsoft\Windows\CurrentVersion\Run";
+        let (run_key, _) = hkcu
+            .create_subkey(path)
+            .map_err(|e| format!("Failed to access Windows Run registry key: {}", e))?;
+
+        if enable {
+            let current_exe = std::env::current_exe()
+                .map_err(|e| format!("Failed to get current executable path: {}", e))?;
+            let mut exe_str = current_exe.to_string_lossy().to_string();
+            if exe_str.starts_with(r"\\?\") {
+                exe_str = exe_str[4..].to_string();
+            }
+            let quoted_cmd = format!("\"{}\"", exe_str);
+            run_key
+                .set_value("TodoLite", &quoted_cmd)
+                .map_err(|e| format!("Failed to write autostart registry entry: {}", e))?;
+            Ok(true)
+        } else {
+            match run_key.delete_value("TodoLite") {
+                Ok(_) => Ok(false),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                Err(e) => Err(format!("Failed to delete autostart registry entry: {}", e)),
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
 fn main() {
     let db = DbState::new().expect("Failed to initialize SQLite database");
 
@@ -293,6 +352,8 @@ fn main() {
             open_export_directory,
             reset_database,
             restore_backup,
+            get_autostart,
+            set_autostart,
         ])
         .run(tauri::generate_context!())
         .expect("error while running TodoLite application");
@@ -309,5 +370,28 @@ mod tests {
         assert!(Shortcut::from_str("Control+Shift+T").is_ok(), "Control+Shift+T should parse");
         assert!(Shortcut::from_str("Alt+1").is_ok(), "Alt+1 should parse");
         assert!(Shortcut::from_str("F11").is_ok(), "F11 should parse");
+    }
+
+    #[test]
+    fn test_autostart_query() {
+        let res = get_autostart();
+        assert!(res.is_ok(), "get_autostart should execute without error");
+    }
+
+    #[test]
+    fn test_autostart_toggle() {
+        let initial = get_autostart().unwrap_or(false);
+        // Test enabling
+        let set_res = set_autostart(true);
+        assert!(set_res.is_ok(), "Setting autostart to true should succeed");
+        assert_eq!(get_autostart().unwrap(), true, "Autostart should now be true");
+
+        // Test disabling
+        let unset_res = set_autostart(false);
+        assert!(unset_res.is_ok(), "Setting autostart to false should succeed");
+        assert_eq!(get_autostart().unwrap(), false, "Autostart should now be false");
+
+        // Restore initial state
+        let _ = set_autostart(initial);
     }
 }

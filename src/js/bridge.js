@@ -115,6 +115,8 @@ export class Bridge {
       res.content = args.content || '';
     } else if (command === 'open_export_directory') {
       res.directory = args.directory || '';
+    } else if (command === 'set_autostart') {
+      res.enable = Boolean(args.enable);
     } else if (command === 'register_global_toggle_shortcut') {
       res.shortcut = args.shortcut || '';
     } else if (command === 'restore_backup') {
@@ -493,6 +495,16 @@ export class Bridge {
         return true;
       }
 
+      case 'get_autostart': {
+        return localStorage.getItem('todolite_autostart') === 'true';
+      }
+
+      case 'set_autostart': {
+        const enabled = Boolean(args.enable);
+        localStorage.setItem('todolite_autostart', JSON.stringify(enabled));
+        return enabled;
+      }
+
       case 'register_global_toggle_shortcut': {
         return Promise.resolve(null);
       }
@@ -699,6 +711,14 @@ export class Bridge {
 
   static async openExportDirectory(directory) {
     return this.invoke('open_export_directory', { directory });
+  }
+
+  static async getAutoStart() {
+    return this.invoke('get_autostart');
+  }
+
+  static async setAutoStart(enable) {
+    return this.invoke('set_autostart', { enable: Boolean(enable) });
   }
 
   static async registerGlobalToggleShortcut(shortcut) {
