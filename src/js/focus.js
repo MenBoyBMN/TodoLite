@@ -61,6 +61,11 @@ export class FocusSessionManager {
     this.btnSkip = document.getElementById('btn-focus-skip');
     this.btnReset = document.getElementById('btn-focus-reset');
     this.btnRestart = document.getElementById('btn-focus-restart');
+    this.btnStopAlarm = document.getElementById('btn-focus-stop-alarm');
+
+    this.activeAlarmNodes = [];
+    this.alarmMasterGain = null;
+    this.alarmTimeout = null;
 
     this.taskSelect = document.getElementById('focus-task-select');
     this.autoNextToggle = document.getElementById('focus-auto-next-toggle');
@@ -90,6 +95,8 @@ export class FocusSessionManager {
         if (this.status === 'work' || this.status === 'break' || this.status === 'paused') {
           this.updateActiveVisuals();
         }
+      } else {
+        this.stopAlarmSound();
       }
     });
   }
@@ -147,7 +154,18 @@ export class FocusSessionManager {
 
     // Restart when completed
     if (this.btnRestart) {
-      this.btnRestart.addEventListener('click', () => this.showSetupView());
+      this.btnRestart.addEventListener('click', () => {
+        this.stopAlarmSound();
+        this.showSetupView();
+      });
+    }
+
+    // Stop alarm sound button
+    if (this.btnStopAlarm) {
+      this.btnStopAlarm.addEventListener('click', () => {
+        this.stopAlarmSound();
+        showToast('Đã tắt âm báo hết giờ', 'info');
+      });
     }
 
     // Toggles
@@ -604,27 +622,167 @@ export class FocusSessionManager {
     this.ensureAudioContext();
     if (!this.audioCtx) return;
 
+    // Stop any existing completion alarm sound
+    this.stopAlarmSound();
+
     const ctx = this.audioCtx;
     const now = ctx.currentTime;
 
     if (type === 'start') {
-      // Soft single harmonic tone
-      this.playTone(523.25, now, 0.4, 0.25); // C5
+      // Soft single warm chime
+      this.playWarmBell(523.25, now, 0.6, 0.22); // C5
     } else if (type === 'work') {
-      // Bright double ascending chime (E5 -> G5)
-      this.playTone(659.25, now, 0.35, 0.3);
-      this.playTone(783.99, now + 0.15, 0.5, 0.3);
+      // Hết thời gian nghỉ -> Bắt đầu hiệp làm việc: chuông ấm dần hướng lên, thời lượng ~2.7s (<= 3s)
+      this.playWarmBell(261.63, now, 2.6, 0.16);         // C4
+      this.playWarmBell(329.63, now + 0.35, 2.3, 0.18);  // E4
+      this.playWarmBell(392.00, now + 0.70, 2.0, 0.22);  // G4
     } else if (type === 'break') {
-      // Gentle calming chime (A4 -> E5)
-      this.playTone(440.0, now, 0.4, 0.25);
-      this.playTone(659.25, now + 0.2, 0.6, 0.25);
+      // Hết hiệp làm việc -> Bắt đầu nghỉ ngơi: chuông thư giãn hướng xuống, thời lượng ~2.7s (<= 3s)
+      this.playWarmBell(392.00, now, 2.6, 0.16);         // G4
+      this.playWarmBell(329.63, now + 0.35, 2.3, 0.18);  // E4
+      this.playWarmBell(261.63, now + 0.70, 2.0, 0.22);  // C4
     } else if (type === 'completed') {
-      // Triumphant chord (C5 - E5 - G5 - C6)
-      this.playTone(523.25, now, 0.6, 0.3);
-      this.playTone(659.25, now + 0.15, 0.6, 0.3);
-      this.playTone(783.99, now + 0.3, 0.7, 0.35);
-      this.playTone(1046.50, now + 0.45, 1.2, 0.4);
+      // Âm thanh hoàn thành hết giờ: Khác hoàn toàn, giai điệu chúc mừng trang trọng + hợp âm vang sâu, thời lượng ~4.75s (<= 5s), có thể tắt được
+      this.playCompletionAlarm();
     }
+  }
+
+  playWarmBell(freq, startTime, duration, maxGain = 0.2, dest = null) {
+    const ctx = this.audioCtx;
+    const destination = dest || ctx.destination;
+
+    // Gentle low-pass filter to eliminate any harsh high frequencies
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1150, startTime);
+    filter.Q.setValueAtTime(0.7, startTime);
+    filter.connect(destination);
+
+    // Fundamental oscillator (sine)
+    const oscMain = ctx.createOscillator();
+    const gainMain = ctx.createGain();
+    oscMain.type = 'sine';
+    oscMain.frequency.setValueAtTime(freq, startTime);
+
+    // Harmonic overtone oscillator (triangle, subtle warmth)
+    const oscHarmonic = ctx.createOscillator();
+    const gainHarmonic = ctx.createGain();
+    oscHarmonic.type = 'triangle';
+    oscHarmonic.frequency.setValueAtTime(freq * 2, startTime);
+
+    // Envelope for main tone: soft attack (0.04s) & smooth decay
+    gainMain.gain.setValueAtTime(0.0001, startTime);
+    gainMain.gain.exponentialRampToValueAtTime(maxGain, startTime + 0.04);
+    gainMain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    // Envelope for harmonic overtone
+    gainHarmonic.gain.setValueAtTime(0.0001, startTime);
+    gainHarmonic.gain.exponentialRampToValueAtTime(maxGain * 0.25, startTime + 0.03);
+    gainHarmonic.gain.exponentialRampToValueAtTime(0.0001, startTime + duration * 0.7);
+
+    oscMain.connect(gainMain);
+    gainMain.connect(filter);
+
+    oscHarmonic.connect(gainHarmonic);
+    gainHarmonic.connect(filter);
+
+    oscMain.start(startTime);
+    oscMain.stop(startTime + duration + 0.05);
+
+    oscHarmonic.start(startTime);
+    oscHarmonic.stop(startTime + duration * 0.7 + 0.05);
+
+    return [oscMain, oscHarmonic];
+  }
+
+  playCompletionAlarm() {
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+
+    // Master gain for stopping alarm at any time
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(1, now);
+    masterGain.connect(ctx.destination);
+    this.alarmMasterGain = masterGain;
+
+    this.activeAlarmNodes = [];
+
+    // Part 1: Ascending 5-note melodic celebration fanfare
+    const notes = [
+      { freq: 261.63, time: now, duration: 1.8, gain: 0.16 },         // C4
+      { freq: 329.63, time: now + 0.22, duration: 1.8, gain: 0.17 },  // E4
+      { freq: 392.00, time: now + 0.44, duration: 1.8, gain: 0.18 },  // G4
+      { freq: 493.88, time: now + 0.66, duration: 1.8, gain: 0.19 },  // B4
+      { freq: 523.25, time: now + 0.88, duration: 2.2, gain: 0.22 },  // C5
+    ];
+
+    notes.forEach(n => {
+      const oscs = this.playWarmBell(n.freq, n.time, n.duration, n.gain, masterGain);
+      this.activeAlarmNodes.push(...oscs);
+    });
+
+    // Part 2: Rich resonant grand celebration chord & gong starting at now + 1.25s, decaying to ~4.75s
+    const chordTime = now + 1.25;
+    const chordDuration = 3.5; // ends at now + 4.75s total
+
+    const chordTones = [
+      { freq: 130.81, gain: 0.25 }, // C3 (Deep base gong)
+      { freq: 196.00, gain: 0.20 }, // G3 (Warm fifth)
+      { freq: 261.63, gain: 0.18 }, // C4
+      { freq: 329.63, gain: 0.17 }, // E4
+      { freq: 392.00, gain: 0.18 }, // G4
+    ];
+
+    chordTones.forEach(ct => {
+      const oscs = this.playWarmBell(ct.freq, chordTime, chordDuration, ct.gain, masterGain);
+      this.activeAlarmNodes.push(...oscs);
+    });
+
+    // Show the Stop Alarm button so user can dismiss the sound
+    if (this.btnStopAlarm) {
+      this.btnStopAlarm.style.display = 'inline-flex';
+    }
+
+    // Auto hide the button when sound naturally ends after 4.85 seconds
+    if (this.alarmTimeout) clearTimeout(this.alarmTimeout);
+    this.alarmTimeout = setTimeout(() => {
+      if (this.btnStopAlarm) {
+        this.btnStopAlarm.style.display = 'none';
+      }
+      this.activeAlarmNodes = [];
+      this.alarmMasterGain = null;
+    }, 4900);
+  }
+
+  stopAlarmSound() {
+    if (this.alarmTimeout) {
+      clearTimeout(this.alarmTimeout);
+      this.alarmTimeout = null;
+    }
+
+    if (this.btnStopAlarm) {
+      this.btnStopAlarm.style.display = 'none';
+    }
+
+    if (this.alarmMasterGain && this.audioCtx) {
+      try {
+        const now = this.audioCtx.currentTime;
+        this.alarmMasterGain.gain.cancelScheduledValues(now);
+        this.alarmMasterGain.gain.setValueAtTime(this.alarmMasterGain.gain.value, now);
+        this.alarmMasterGain.gain.linearRampToValueAtTime(0.0001, now + 0.04);
+      } catch (_) {}
+    }
+
+    if (this.activeAlarmNodes && this.activeAlarmNodes.length > 0) {
+      this.activeAlarmNodes.forEach(osc => {
+        try {
+          osc.stop();
+        } catch (_) {}
+      });
+      this.activeAlarmNodes = [];
+    }
+
+    this.alarmMasterGain = null;
   }
 
   playTone(freq, startTime, duration, maxGain = 0.3) {

@@ -194,8 +194,9 @@
   margin-top: 1px;
 }
 
-/* Glowing Glass Priority Badge */
-.priority-badge {
+/* Glowing Glass Priority Badge / Tag */
+.priority-badge,
+.priority-tag {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -208,21 +209,24 @@
   line-height: 1;
 }
 
-.priority-badge.high {
+.priority-badge.high,
+.priority-tag.high {
   background: var(--priority-high-bg);
   color: var(--priority-high);
   border: 1px solid var(--priority-high-border);
   box-shadow: 0 0 8px rgba(244, 63, 94, 0.2);
 }
 
-.priority-badge.medium {
+.priority-badge.medium,
+.priority-tag.medium {
   background: var(--priority-medium-bg);
   color: var(--priority-medium);
   border: 1px solid var(--priority-medium-border);
   box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
 }
 
-.priority-badge.low {
+.priority-badge.low,
+.priority-tag.low {
   background: var(--priority-low-bg);
   color: var(--priority-low);
   border: 1px solid var(--priority-low-border);
@@ -304,6 +308,70 @@
 .todo-btn.btn-delete:hover {
   background: rgba(244, 63, 94, 0.2);
   color: var(--priority-high);
+}
+
+.todo-btn.btn-priority.priority-high {
+  color: var(--priority-high);
+}
+.todo-btn.btn-priority.priority-high:hover {
+  background: var(--priority-high-bg);
+}
+
+.todo-btn.btn-priority.priority-medium {
+  color: var(--priority-medium);
+}
+.todo-btn.btn-priority.priority-medium:hover {
+  background: var(--priority-medium-bg);
+}
+
+.todo-btn.btn-priority.priority-low {
+  color: var(--priority-low);
+}
+.todo-btn.btn-priority.priority-low:hover {
+  background: var(--priority-low-bg);
+}
+
+.todo-btn.btn-deadline.has-deadline {
+  color: var(--accent-color);
+}
+.todo-btn.btn-deadline:hover {
+  color: var(--accent-color);
+  background: var(--accent-subtle);
+}
+
+.priority-tag.is-clickable {
+  cursor: pointer;
+  transition: transform var(--trans-fast), filter var(--trans-fast);
+}
+.priority-tag.is-clickable:hover {
+  transform: scale(1.08);
+  filter: brightness(1.15);
+}
+
+/* Yellow Border Glow for Selected Note in Search */
+.todo-item.search-highlight-yellow-glow {
+  border: 2.5px solid #f59e0b !important;
+  outline: 2.5px solid #facc15 !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.65), 0 0 24px rgba(245, 158, 11, 0.5) !important;
+  animation: searchYellowBorderPulse 1s ease-in-out infinite alternate !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
+@keyframes searchYellowBorderPulse {
+  0% {
+    outline-color: #f59e0b;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.55), 0 0 16px rgba(245, 158, 11, 0.4);
+    transform: scale(1.015);
+  }
+  100% {
+    outline-color: #fde047;
+    border-color: #facc15;
+    box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.85), 0 0 32px rgba(245, 158, 11, 0.75);
+    transform: scale(1.02);
+  }
 }
 
 /* ==========================================================================
@@ -539,7 +607,8 @@ body.is-reordering-active * {
   font-family: var(--font-mono);
 }
 
-.deadline-custom-row {
+.deadline-custom-row,
+.custom-datetime-inputs {
   display: flex;
   gap: 10px;
 }
@@ -557,7 +626,9 @@ body.is-reordering-active * {
   color: var(--text-muted);
 }
 
-.deadline-input {
+.deadline-input,
+.custom-date-input,
+.custom-time-input {
   background: var(--bg-card);
   border: 1px solid var(--border-color-subtle);
   border-radius: var(--radius-sm);
@@ -567,15 +638,19 @@ body.is-reordering-active * {
   color: var(--text-primary);
   outline: none;
   transition: all var(--trans-fast);
+  flex: 1;
 }
 
-.deadline-input:focus {
+.deadline-input:focus,
+.custom-date-input:focus,
+.custom-time-input:focus {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
 /* Error Banner in Deadline Popover */
-.deadline-error-banner {
+.deadline-error-banner,
+.deadline-error-msg {
   display: none;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
@@ -585,15 +660,19 @@ body.is-reordering-active * {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
+  align-items: center;
+  gap: 6px;
 }
 
-[data-theme="light"] .deadline-error-banner {
+[data-theme="light"] .deadline-error-banner,
+[data-theme="light"] .deadline-error-msg {
   background: #fef2f2;
   color: #b91c1c;
 }
 
-.deadline-error-banner.show {
-  display: block;
+.deadline-error-banner.show,
+.deadline-error-msg.show {
+  display: flex;
   animation: bannerShake 0.4s ease;
 }
 
@@ -611,7 +690,8 @@ body.is-reordering-active * {
   margin-top: 4px;
 }
 
-.btn-deadline-clear {
+.btn-deadline-clear,
+.btn-clear-deadline {
   background: transparent;
   border: 1px solid var(--border-color-subtle);
   padding: 7px 14px;
@@ -623,12 +703,14 @@ body.is-reordering-active * {
   transition: all var(--trans-fast);
 }
 
-.btn-deadline-clear:hover {
+.btn-deadline-clear:hover,
+.btn-clear-deadline:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }
 
-.btn-deadline-apply {
+.btn-deadline-apply,
+.btn-apply-deadline {
   background: var(--accent-gradient);
   border: none;
   padding: 7px 18px;
@@ -641,7 +723,8 @@ body.is-reordering-active * {
   transition: all var(--trans-fast);
 }
 
-.btn-deadline-apply:hover {
+.btn-deadline-apply:hover,
+.btn-apply-deadline:hover {
   filter: brightness(1.1);
   transform: translateY(-1px);
 }

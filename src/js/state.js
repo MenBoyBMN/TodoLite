@@ -15,30 +15,7 @@ class StateStore {
       activeNoteTabId: null,
       noteTabs: [], // Note mode tabs list
       notes: {}, // Cache of notes by tabId: { [tabId]: NoteItem }
-      searchQuery: '',
-      isSearchOpen: false,
-      focusState: {
-        status: 'idle', // 'idle' | 'running' | 'paused' | 'break' | 'completed'
-        totalTargetMinutes: 120, // 2 hours default
-        totalElapsedSeconds: 0,
-        workIntervalMinutes: 25,
-        breakIntervalMinutes: 5,
-        currentIntervalSecondsLeft: 25 * 60,
-        currentIntervalTotalSeconds: 25 * 60,
-        currentSessionIndex: 1,
-        totalEstimatedSessions: 4,
-        linkedTodoId: null,
-        autoNext: true,
-        soundEnabled: true,
-        ambientSound: 'none' // 'none' | 'rain' | 'waves' | 'ticking'
-      },
-      calcState: {
-        displayValue: '0',
-        expression: '',
-        history: [],
-        waitingForOperand: false,
-        operator: null
-      }
+      isSearchOpen: false
     };
     this.listeners = new Map();
   }

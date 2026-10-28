@@ -90,14 +90,6 @@ impl DbState {
         )?;
 
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        conn.execute(
             "CREATE TABLE IF NOT EXISTS note_tabs (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -310,6 +302,19 @@ impl DbState {
         Ok(())
     }
 
+    pub fn reorder_tabs(&self, items: Vec<ReorderItem>) -> Result<()> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare("UPDATE tabs SET sort_order = ?1 WHERE id = ?2")?;
+            for item in items {
+                stmt.execute(params![item.sort_order, &item.id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     // Todos CRUD
     pub fn get_all_todos(&self) -> Result<Vec<TodoItem>> {
         let conn = self.conn.lock().unwrap();
@@ -460,6 +465,67 @@ impl DbState {
         Ok(())
     }
 
+    pub fn update_todo_priority(&self, id: String, priority: String) -> Result<TodoItem> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE todos SET priority = ?1 WHERE id = ?2",
+            params![&priority, &id],
+        )?;
+
+        let todo = conn.query_row(
+            "SELECT id, tab_id, text, completed, priority, sort_order, due_date, created_at 
+             FROM todos WHERE id = ?1",
+            params![&id],
+            |r| {
+                Ok(TodoItem {
+                    id: r.get(0)?,
+                    tab_id: r.get(1)?,
+                    text: r.get(2)?,
+                    completed: r.get(3)?,
+                    priority: r.get(4)?,
+                    sort_order: r.get(5)?,
+                    due_date: r.get(6)?,
+                    created_at: r.get(7)?,
+                })
+            },
+        )?;
+        Ok(todo)
+    }
+
+    pub fn move_todo_to_tab(&self, id: String, tab_id: String) -> Result<TodoItem> {
+        let conn = self.conn.lock().unwrap();
+        let min_sort: i32 = conn.query_row(
+            "SELECT COALESCE(MIN(sort_order), 0) FROM todos WHERE tab_id = ?1",
+            params![&tab_id],
+            |r| r.get(0),
+        ).unwrap_or(0);
+        let new_sort = min_sort - 1;
+
+        conn.execute(
+            "UPDATE todos SET tab_id = ?1, sort_order = ?2 WHERE id = ?3",
+            params![&tab_id, new_sort, &id],
+        )?;
+
+        let todo = conn.query_row(
+            "SELECT id, tab_id, text, completed, priority, sort_order, due_date, created_at 
+             FROM todos WHERE id = ?1",
+            params![&id],
+            |r| {
+                Ok(TodoItem {
+                    id: r.get(0)?,
+                    tab_id: r.get(1)?,
+                    text: r.get(2)?,
+                    completed: r.get(3)?,
+                    priority: r.get(4)?,
+                    sort_order: r.get(5)?,
+                    due_date: r.get(6)?,
+                    created_at: r.get(7)?,
+                })
+            },
+        )?;
+        Ok(todo)
+    }
+
     pub fn reorder_todos(&self, items: Vec<ReorderItem>) -> Result<()> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
@@ -543,6 +609,19 @@ impl DbState {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM notes WHERE tab_id = ?1", params![&id])?;
         conn.execute("DELETE FROM note_tabs WHERE id = ?1", params![&id])?;
+        Ok(())
+    }
+
+    pub fn reorder_note_tabs(&self, items: Vec<ReorderItem>) -> Result<()> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare("UPDATE note_tabs SET sort_order = ?1 WHERE id = ?2")?;
+            for item in items {
+                stmt.execute(params![item.sort_order, &item.id])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -632,7 +711,6 @@ impl DbState {
         let _ = conn.execute("DELETE FROM tabs;", []);
         let _ = conn.execute("DELETE FROM notes;", []);
         let _ = conn.execute("DELETE FROM note_tabs;", []);
-        let _ = conn.execute("DELETE FROM settings;", []);
         let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
 
         drop(conn);

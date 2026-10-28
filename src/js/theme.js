@@ -9,7 +9,6 @@ export class ThemeManager {
     this.btnTheme = document.getElementById('btn-toggle-theme');
     this.themeIcon = document.getElementById('theme-icon');
     this.btnStyle = document.getElementById('btn-toggle-style');
-    this.bottomTabBtns = document.querySelectorAll('.bottom-tab-btn');
     
     this.init();
   }

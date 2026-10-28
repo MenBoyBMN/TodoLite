@@ -319,11 +319,14 @@ export class SearchManager {
         `;
 
         itemEl.addEventListener('click', () => {
-          // Switch to this tab
-          store.setState({ activeTabId: tabId });
+          // Switch to this tab if different
+          const currentTab = store.getState().activeTabId;
+          if (currentTab !== tabId) {
+            store.setState({ activeTabId: tabId });
+          }
           this.closeSearch();
-          // Scroll within todo-scroll-area only
-          setTimeout(() => {
+
+          const highlightTarget = () => {
             const scrollArea = document.querySelector('.todo-scroll-area');
             const targetEl = document.querySelector(`.todo-item[data-id="${item.id}"]`);
             if (scrollArea && targetEl) {
@@ -338,16 +341,35 @@ export class SearchManager {
                 behavior: 'smooth'
               });
 
-              targetEl.style.boxShadow = '0 0 12px var(--accent-color)';
-              setTimeout(() => {
-                targetEl.style.boxShadow = '';
-              }, 1500);
+              // Clean previous highlights
+              document.querySelectorAll('.search-highlight-yellow-glow').forEach(el => {
+                el.classList.remove('search-highlight-yellow-glow');
+              });
+
+              void targetEl.offsetWidth; // Force DOM reflow
+              targetEl.classList.add('search-highlight-yellow-glow');
+
+              // Auto remove after 6 seconds
+              if (this.highlightTimer) clearTimeout(this.highlightTimer);
+              this.highlightTimer = setTimeout(() => {
+                if (targetEl) targetEl.classList.remove('search-highlight-yellow-glow');
+              }, 6000);
+
+              return true;
+            }
+            return false;
+          };
+
+          // Try immediately or after render ticks
+          setTimeout(() => {
+            if (!highlightTarget()) {
+              setTimeout(highlightTarget, 150);
             }
 
             const appWin = document.getElementById('app-window');
             if (appWin && appWin.scrollTop !== 0) appWin.scrollTop = 0;
             if (window.scrollY !== 0) window.scrollTo(0, 0);
-          }, 100);
+          }, 80);
         });
 
         groupEl.appendChild(itemEl);

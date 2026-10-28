@@ -129,14 +129,7 @@
   margin-bottom: 8px;
 }
 
-.search-group-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--accent-color);
-  padding: 4px 6px;
-}
+
 
 .search-result-item {
   display: flex;
@@ -159,22 +152,7 @@
   transform: translateX(2px);
 }
 
-.search-result-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.search-result-text mark {
-  background: rgba(245, 158, 11, 0.35);
-  color: #ffffff;
-  border-radius: 2px;
-  padding: 0 2px;
-}
 
 /* Match highlight used in search results (note & checklist) */
 .match-highlight {
@@ -190,12 +168,7 @@
   color: #fef9c3;
 }
 
-.search-empty {
-  text-align: center;
-  padding: 36px 16px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
+
 
 /* Search group header styling */
 .search-group-header {

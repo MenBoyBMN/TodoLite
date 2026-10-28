@@ -136,30 +136,7 @@
   color: #fbbf24;
 }
 
-/* Custom Minutes Input inline row */
-.focus-custom-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
 
-.focus-custom-input {
-  width: 72px;
-  padding: 5px 8px;
-  border: 1px solid var(--border-color-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 12px;
-  outline: none;
-  text-align: center;
-}
-
-.focus-custom-input:focus {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
-}
 
 /* Task Link Selector */
 .focus-task-select {
@@ -585,6 +562,35 @@
   line-height: 1.5;
   max-width: 320px;
   margin-bottom: 20px;
+}
+
+.btn-focus-stop-alarm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--priority-high);
+  border: 1.5px solid var(--priority-high);
+  border-radius: var(--radius-md);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  animation: pulseStopAlarm 1.2s infinite alternate;
+}
+
+.btn-focus-stop-alarm:hover {
+  background: var(--priority-high);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.4);
+}
+
+@keyframes pulseStopAlarm {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+  100% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
 }
 
 @keyframes bounce {

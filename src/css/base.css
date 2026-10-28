@@ -118,51 +118,7 @@ html, body {
   transform: scale(1.08);
 }
 
-.app-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  background: var(--accent-subtle);
-  color: var(--accent-color);
-  border: 1px solid var(--border-color-subtle);
-  border-radius: var(--radius-pill);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  cursor: pointer;
-  pointer-events: auto !important;
-  transition: all var(--trans-fast);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  outline: none;
-  font-family: inherit;
-  user-select: none;
-}
 
-.app-badge:hover {
-  background: var(--accent-color);
-  color: #ffffff;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 10px var(--accent-subtle);
-  transform: translateY(-0.5px);
-}
-
-.app-badge:active {
-  transform: scale(0.95);
-}
-
-.app-badge.is-minimal {
-  background: rgba(148, 163, 184, 0.16);
-  color: var(--text-secondary);
-  border-color: var(--border-color-subtle);
-}
-
-.app-badge.is-minimal:hover {
-  background: var(--accent-color);
-  color: #ffffff;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 8px var(--accent-subtle);
-}
 
 /* Titlebar Actions (Pin, Theme, Minimize, Close) */
 .titlebar-actions {
@@ -192,18 +148,7 @@ html, body {
   transform: translateY(-1px);
 }
 
-/* Pin Always On Top Button */
-.action-btn.btn-pin.active {
-  background: linear-gradient(135deg, #f43f5e, #e11d48);
-  color: #ffffff;
-  border-color: rgba(244, 63, 94, 0.6);
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.45);
-}
 
-.action-btn.btn-pin.active:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px) scale(1.05);
-}
 
 .action-btn.btn-close:hover {
   background: rgba(239, 68, 68, 0.85);

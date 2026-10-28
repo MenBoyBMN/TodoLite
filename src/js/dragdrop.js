@@ -5,6 +5,7 @@
 
 import { store } from './state.js';
 import { Bridge } from './bridge.js';
+import { showToast } from './app.js';
 
 export class DragDropManager {
   constructor() {
@@ -22,6 +23,8 @@ export class DragDropManager {
     this.activePointerId = null;
 
     this.targetSlot = null;
+    this.targetTabId = null;
+    this.currentHoveredTabEl = null;
 
     this.initEvents();
   }
@@ -89,8 +92,46 @@ export class DragDropManager {
       }
     }
 
-    // Calculate drop target
-    this.updateDropTarget(e.clientY);
+    // Check if hovering over another tab in #tabs-list
+    const tabListEl = document.getElementById('tabs-list');
+    let hoveredTab = null;
+    if (tabListEl) {
+      const tabs = Array.from(tabListEl.querySelectorAll('.tab-item'));
+      for (const tab of tabs) {
+        const tr = tab.getBoundingClientRect();
+        if (
+          e.clientX >= tr.left &&
+          e.clientX <= tr.right &&
+          e.clientY >= tr.top - 12 &&
+          e.clientY <= tr.bottom + 12
+        ) {
+          hoveredTab = tab;
+          break;
+        }
+      }
+    }
+
+    const currentTabId = store.getState().activeTabId;
+    if (hoveredTab && hoveredTab.dataset.tabId && hoveredTab.dataset.tabId !== currentTabId) {
+      this.targetTabId = hoveredTab.dataset.tabId;
+      if (this.currentHoveredTabEl && this.currentHoveredTabEl !== hoveredTab) {
+        this.currentHoveredTabEl.classList.remove('tab-drop-hover');
+      }
+      this.currentHoveredTabEl = hoveredTab;
+      hoveredTab.classList.add('tab-drop-hover');
+
+      // Hide indicator line while hovering over tab
+      if (this.indicatorLine) this.indicatorLine.style.display = 'none';
+      this.targetSlot = null;
+    } else {
+      if (this.currentHoveredTabEl) {
+        this.currentHoveredTabEl.classList.remove('tab-drop-hover');
+        this.currentHoveredTabEl = null;
+      }
+      this.targetTabId = null;
+      // Calculate drop target within list
+      this.updateDropTarget(e.clientY);
+    }
   }
 
   startDragging() {
@@ -175,9 +216,40 @@ export class DragDropManager {
       this.indicatorLine = null;
     }
 
+    if (this.currentHoveredTabEl) {
+      this.currentHoveredTabEl.classList.remove('tab-drop-hover');
+      this.currentHoveredTabEl = null;
+    }
+
     const draggedItem = this.activeItem;
     if (draggedItem) {
       draggedItem.classList.remove('is-dragging-origin');
+    }
+
+    // Dropped onto another task/tab!
+    if (this.isDragging && draggedItem && this.targetTabId) {
+      const todoId = draggedItem.dataset.id;
+      const targetTabId = this.targetTabId;
+      const { tabs, todos } = store.getState();
+      const targetTab = tabs.find(t => t.id === targetTabId);
+      const tabName = targetTab ? targetTab.name : 'Tab mới';
+
+      try {
+        await Bridge.invoke('move_todo_to_tab', { id: todoId, tab_id: targetTabId });
+      } catch (err) {
+        console.error('Failed to move todo to tab:', err);
+      }
+
+      // Update state: change tab_id of the moved todo
+      const updatedTodos = todos.map(t => t.id === todoId ? { ...t, tab_id: targetTabId } : t);
+      store.setState({ todos: updatedTodos });
+      showToast(`Đã chuyển note sang tab "${tabName}" ✨`, 'success');
+
+      this.isDragging = false;
+      this.activeItem = null;
+      this.targetSlot = null;
+      this.targetTabId = null;
+      return;
     }
 
     if (this.isDragging && draggedItem && this.targetSlot !== null) {

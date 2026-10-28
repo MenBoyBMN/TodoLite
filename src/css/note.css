@@ -108,6 +108,15 @@
   border-color: var(--accent-color);
 }
 
+.note-tool-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
 /* Color indicator underline */
 .color-indicator-char {
   font-weight: 700;

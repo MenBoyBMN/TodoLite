@@ -16,7 +16,6 @@ const POPULAR_EMOJIS = [
 
 export class NoteManager {
   constructor() {
-    this.editorArea = document.getElementById('note-editor-area');
     this.editor = document.getElementById('note-editor');
     this.toolbar = document.getElementById('note-toolbar');
 
@@ -74,6 +73,15 @@ export class NoteManager {
     this.syncIndicator = document.getElementById('note-sync-indicator');
     this.syncText = document.getElementById('note-sync-text');
 
+    // History Undo / Redo elements & stacks (max 3 redo levels)
+    this.btnUndo = document.getElementById('btn-note-undo');
+    this.btnRedo = document.getElementById('btn-note-redo');
+    this.undoStack = [];
+    this.redoStack = [];
+    this.lastContent = '';
+    this.historyDebounce = null;
+    this.historyMap = {};
+
     this.isComposing = false;
     this.saveTimeout = null;
     this.savedRange = null;
@@ -91,6 +99,7 @@ export class NoteManager {
     this.bindEditorEvents();
     this.bindExportEvents();
     this.bindPopoverClose();
+    this.bindHistoryEvents();
 
     try {
       document.execCommand('defaultParagraphSeparator', false, 'p');
@@ -264,6 +273,7 @@ export class NoteManager {
     const { notes } = store.getState();
     const updatedNotes = { ...notes };
     delete updatedNotes[tabToDelete.id];
+    delete this.historyMap[tabToDelete.id];
 
     store.setState({
       noteTabs: remaining,
@@ -367,8 +377,138 @@ export class NoteManager {
         tabEl.appendChild(closeBtn);
       }
 
-      tabEl.addEventListener('click', () => this.handleSwitchNoteTab(tab.id));
+      this.attachNoteTabDragEvents(tabEl, tab);
       this.noteTabsListEl.appendChild(tabEl);
+    });
+  }
+
+  attachNoteTabDragEvents(tabEl, tab) {
+    let startX = 0;
+    let startY = 0;
+    let isDragging = false;
+    let hasDragged = false;
+    let ghostEl = null;
+    let indicator = null;
+    let targetSlot = null;
+
+    const onPointerMove = (e) => {
+      const deltaX = e.clientX - startX;
+
+      if (!isDragging) {
+        if (Math.abs(deltaX) < 5) return;
+        isDragging = true;
+        hasDragged = true;
+        tabEl.classList.add('is-dragging-tab');
+
+        ghostEl = tabEl.cloneNode(true);
+        ghostEl.className = 'tab-drag-ghost';
+        ghostEl.style.width = `${tabEl.offsetWidth}px`;
+        ghostEl.style.left = `${e.clientX - 25}px`;
+        ghostEl.style.top = `${tabEl.getBoundingClientRect().top}px`;
+        document.body.appendChild(ghostEl);
+
+        indicator = document.createElement('div');
+        indicator.className = 'tab-drop-indicator';
+        this.noteTabsListEl.appendChild(indicator);
+      }
+
+      if (ghostEl) {
+        ghostEl.style.left = `${e.clientX - 25}px`;
+      }
+
+      const allTabs = Array.from(this.noteTabsListEl.querySelectorAll('.tab-item:not(.tab-drag-ghost)'));
+      let slot = allTabs.length;
+      for (let i = 0; i < allTabs.length; i++) {
+        const rect = allTabs[i].getBoundingClientRect();
+        if (e.clientX < rect.left + rect.width / 2) {
+          slot = i;
+          break;
+        }
+      }
+      targetSlot = slot;
+
+      if (indicator && allTabs.length > 0) {
+        let left = 0;
+        if (slot === 0) {
+          left = allTabs[0].offsetLeft - 2;
+        } else if (slot === allTabs.length) {
+          const last = allTabs[allTabs.length - 1];
+          left = last.offsetLeft + last.offsetWidth + 2;
+        } else {
+          const prev = allTabs[slot - 1];
+          const next = allTabs[slot];
+          left = (prev.offsetLeft + prev.offsetWidth + next.offsetLeft) / 2 - 1;
+        }
+        indicator.style.left = `${left}px`;
+        indicator.style.display = 'block';
+      }
+    };
+
+    const onPointerUp = async (e) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+
+      if (ghostEl) {
+        ghostEl.remove();
+        ghostEl = null;
+      }
+      if (indicator) {
+        indicator.remove();
+        indicator = null;
+      }
+      tabEl.classList.remove('is-dragging-tab');
+
+      if (isDragging && targetSlot !== null) {
+        const { noteTabs } = store.getState();
+        const originIndex = noteTabs.findIndex(t => t.id === tab.id);
+
+        if (originIndex !== -1 && targetSlot !== originIndex && targetSlot !== originIndex + 1) {
+          const reordered = [...noteTabs];
+          const [moved] = reordered.splice(originIndex, 1);
+          const insertIndex = targetSlot > originIndex ? targetSlot - 1 : targetSlot;
+          reordered.splice(insertIndex, 0, moved);
+
+          const orderMap = reordered.map((t, idx) => ({ id: t.id, sort_order: idx }));
+
+          try {
+            await Bridge.invoke('reorder_note_tabs', { items: orderMap });
+          } catch (err) {
+            console.error('Failed to persist note tab reorder:', err);
+          }
+
+          const updatedTabs = reordered.map((t, idx) => ({ ...t, sort_order: idx }));
+          store.setState({ noteTabs: updatedTabs });
+        }
+      }
+
+      isDragging = false;
+      setTimeout(() => {
+        hasDragged = false;
+      }, 60);
+    };
+
+    tabEl.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.tab-close-btn') || e.target.closest('.tab-title-edit')) return;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      isDragging = false;
+      hasDragged = false;
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    });
+
+    tabEl.addEventListener('click', (e) => {
+      if (hasDragged) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      this.handleSwitchNoteTab(tab.id);
     });
   }
 
@@ -522,6 +662,7 @@ export class NoteManager {
       this.isComposing = false;
       this.updateCounts();
       this.triggerAutoSave();
+      this.queueHistorySnapshot();
     });
 
     // Content input
@@ -588,6 +729,22 @@ export class NoteManager {
 
     // Keyboard shortcuts
     this.editor.addEventListener('keydown', (e) => {
+      // Undo & Redo shortcuts: Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          this.redo();
+        } else {
+          this.undo();
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        this.redo();
+        return;
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault();
         document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
@@ -599,6 +756,118 @@ export class NoteManager {
         showToast('Đã lưu ghi chú tức thì! ✓', 'info');
       }
     });
+  }
+
+  bindHistoryEvents() {
+    if (this.btnUndo) {
+      this.btnUndo.addEventListener('mousedown', (e) => e.preventDefault());
+      this.btnUndo.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.undo();
+      });
+    }
+
+    if (this.btnRedo) {
+      this.btnRedo.addEventListener('mousedown', (e) => e.preventDefault());
+      this.btnRedo.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.redo();
+      });
+    }
+  }
+
+  queueHistorySnapshot() {
+    clearTimeout(this.historyDebounce);
+    this.historyDebounce = setTimeout(() => {
+      this.recordSnapshot();
+    }, 350);
+  }
+
+  recordSnapshot(force = false) {
+    if (this.isComposing && !force) return;
+    if (!this.editor) return;
+    const currentHtml = this.editor.innerHTML;
+    if (currentHtml === this.lastContent) return;
+
+    if (this.lastContent !== undefined && this.lastContent !== null && this.lastContent !== '') {
+      this.undoStack.push({
+        html: this.lastContent,
+        offsets: this.savedOffsets || this.getSelectionOffsets()
+      });
+      if (this.undoStack.length > 30) {
+        this.undoStack.shift();
+      }
+      // New user typing or edits reset redo stack
+      this.redoStack = [];
+    }
+    this.lastContent = currentHtml;
+    this.updateHistoryButtonsState();
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return;
+    const currentHtml = this.editor.innerHTML;
+
+    // Push current state into redoStack (Capped at maximum 3 levels: "tối đa 3 đợt")
+    this.redoStack.push({
+      html: currentHtml,
+      offsets: this.getSelectionOffsets()
+    });
+    while (this.redoStack.length > 3) {
+      this.redoStack.shift();
+    }
+
+    const previous = this.undoStack.pop();
+    this.editor.innerHTML = previous.html;
+    this.lastContent = previous.html;
+    this.cleanBlinkInjectedStyles();
+    this.updateCounts();
+    if (previous.offsets) {
+      this.setSelectionOffsets(previous.offsets.start, previous.offsets.end);
+    }
+    this.triggerAutoSave();
+    this.updateHistoryButtonsState();
+    showToast('Đã hoàn tác (Undo)', 'info');
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return;
+    const currentHtml = this.editor.innerHTML;
+
+    this.undoStack.push({
+      html: currentHtml,
+      offsets: this.getSelectionOffsets()
+    });
+    if (this.undoStack.length > 30) {
+      this.undoStack.shift();
+    }
+
+    const next = this.redoStack.pop();
+    this.editor.innerHTML = next.html;
+    this.lastContent = next.html;
+    this.cleanBlinkInjectedStyles();
+    this.updateCounts();
+    if (next.offsets) {
+      this.setSelectionOffsets(next.offsets.start, next.offsets.end);
+    }
+    this.triggerAutoSave();
+    this.updateHistoryButtonsState();
+    showToast('Đã làm lại (Redo)', 'info');
+  }
+
+  updateHistoryButtonsState() {
+    if (this.btnUndo) {
+      this.btnUndo.disabled = this.undoStack.length === 0;
+      this.btnUndo.title = this.undoStack.length > 0 
+        ? `Hoàn tác (Ctrl+Z) - còn ${this.undoStack.length} bước` 
+        : 'Hoàn tác (Ctrl+Z)';
+    }
+    if (this.btnRedo) {
+      this.btnRedo.disabled = this.redoStack.length === 0;
+      this.btnRedo.title = this.redoStack.length > 0 
+        ? `Làm lại (Ctrl+Y) - còn ${this.redoStack.length}/3 đợt` 
+        : 'Làm lại (Ctrl+Y, tối đa 3 lần)';
+    }
   }
 
   bindPopoverClose() {
@@ -822,12 +1091,14 @@ export class NoteManager {
   }
 
   executeFormat(command, value = null) {
+    this.recordSnapshot(true);
     this.restoreSelection();
     document.execCommand(command, false, value);
     this.editor.focus();
     this.saveSelection(true);
     this.updateToolbarState();
     this.triggerAutoSave();
+    this.recordSnapshot(true);
   }
 
   applyHeading(tag) {
@@ -981,6 +1252,7 @@ export class NoteManager {
     this.updateCounts();
     if (!this.isComposing) {
       this.triggerAutoSave();
+      this.queueHistorySnapshot();
     }
   }
 
@@ -1216,6 +1488,11 @@ export class NoteManager {
     }
     // 1. Save previous note immediately if switching to different tab
     if (this.currentTabId && this.currentTabId !== newTabId) {
+      if (this.historyMap[this.currentTabId]) {
+        this.historyMap[this.currentTabId].undoStack = this.undoStack;
+        this.historyMap[this.currentTabId].redoStack = this.redoStack;
+        this.historyMap[this.currentTabId].lastContent = this.editor.innerHTML;
+      }
       await this.saveCurrentNoteImmediately();
     }
     // 2. Set new tab and load note
@@ -1249,6 +1526,19 @@ export class NoteManager {
     this.savedOffsets = null;
     this.updateCounts();
     this.updateToolbarState();
+
+    // Setup per-tab history stacks
+    if (!this.historyMap[activeNoteTabId]) {
+      this.historyMap[activeNoteTabId] = {
+        undoStack: [],
+        redoStack: [],
+        lastContent: this.editor.innerHTML
+      };
+    }
+    this.undoStack = this.historyMap[activeNoteTabId].undoStack;
+    this.redoStack = this.historyMap[activeNoteTabId].redoStack;
+    this.lastContent = this.editor.innerHTML;
+    this.updateHistoryButtonsState();
 
     const plainText = (this.editor.innerText || '').trim();
     if (plainText.length > 0) {

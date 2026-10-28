@@ -33,6 +33,11 @@ fn delete_tab(id: String, state: State<DbState>) -> Result<(), String> {
     state.delete_tab(id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn reorder_tabs(items: Vec<ReorderItem>, state: State<DbState>) -> Result<(), String> {
+    state.reorder_tabs(items).map_err(|e| e.to_string())
+}
+
 // ----------------- TODO COMMANDS -----------------
 #[tauri::command]
 fn get_all_todos(state: State<DbState>) -> Result<Vec<TodoItem>, String> {
@@ -81,6 +86,24 @@ fn reorder_todos(items: Vec<ReorderItem>, state: State<DbState>) -> Result<(), S
     state.reorder_todos(items).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn update_todo_priority(
+    id: String,
+    priority: String,
+    state: State<DbState>,
+) -> Result<TodoItem, String> {
+    state.update_todo_priority(id, priority).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn move_todo_to_tab(
+    id: String,
+    tab_id: String,
+    state: State<DbState>,
+) -> Result<TodoItem, String> {
+    state.move_todo_to_tab(id, tab_id).map_err(|e| e.to_string())
+}
+
 // ----------------- NOTE TAB COMMANDS -----------------
 #[tauri::command]
 fn get_all_note_tabs(state: State<DbState>) -> Result<Vec<TabItem>, String> {
@@ -100,6 +123,11 @@ fn update_note_tab(id: String, name: String, state: State<DbState>) -> Result<Ta
 #[tauri::command]
 fn delete_note_tab(id: String, state: State<DbState>) -> Result<(), String> {
     state.delete_note_tab(id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reorder_note_tabs(items: Vec<ReorderItem>, state: State<DbState>) -> Result<(), String> {
+    state.reorder_note_tabs(items).map_err(|e| e.to_string())
 }
 
 // ----------------- NOTE COMMANDS -----------------
@@ -327,17 +355,21 @@ fn main() {
             create_tab,
             update_tab,
             delete_tab,
+            reorder_tabs,
             get_all_todos,
             create_todo,
             toggle_todo,
             update_todo,
+            update_todo_priority,
             update_todo_deadline,
+            move_todo_to_tab,
             delete_todo,
             reorder_todos,
             get_all_note_tabs,
             create_note_tab,
             update_note_tab,
             delete_note_tab,
+            reorder_note_tabs,
             get_all_notes,
             get_note_by_tab,
             upsert_note,

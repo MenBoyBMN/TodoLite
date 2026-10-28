@@ -6,6 +6,7 @@
 import { store } from './state.js';
 import { Bridge } from './bridge.js';
 import { confirmDialog } from './dialog.js';
+import { showToast } from './app.js';
 
 export class TodoManager {
   constructor() {
@@ -345,6 +346,33 @@ export class TodoManager {
     store.setState({ todos: updated });
   }
 
+  async handleCyclePriority(todoId) {
+    const { todos } = store.getState();
+    const current = todos.find(t => t.id === todoId);
+    if (!current) return;
+
+    const sequence = ['none', 'low', 'medium', 'high'];
+    const currentIdx = sequence.indexOf(current.priority || 'none');
+    const nextPriority = sequence[(currentIdx + 1) % sequence.length];
+
+    try {
+      await Bridge.invoke('update_todo_priority', { id: current.id, priority: nextPriority });
+    } catch (err) {
+      console.error('Failed to update todo priority:', err);
+    }
+
+    const priorityNames = {
+      none: 'Không ưu tiên',
+      low: 'Ưu tiên THẤP',
+      medium: 'Ưu tiên VỪA',
+      high: 'Ưu tiên CAO'
+    };
+
+    const updated = todos.map(t => t.id === todoId ? { ...t, priority: nextPriority } : t);
+    store.setState({ todos: updated });
+    showToast(`Đã đổi mức độ: ${priorityNames[nextPriority]}`, 'info');
+  }
+
   async handleToggleTodo(todoId) {
     return this.handleToggle(todoId);
   }
@@ -541,8 +569,14 @@ export class TodoManager {
 
       if (todo.priority && todo.priority !== 'none') {
         const priorityTag = document.createElement('span');
-        priorityTag.className = `priority-tag ${todo.priority}`;
+        priorityTag.className = `priority-tag ${todo.priority} is-clickable`;
         priorityTag.textContent = todo.priority.toUpperCase();
+        priorityTag.title = 'Nhấp để đổi mức độ ưu tiên';
+        priorityTag.style.cursor = 'pointer';
+        priorityTag.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleCyclePriority(todo.id);
+        });
         metaEl.appendChild(priorityTag);
       }
 
@@ -573,6 +607,46 @@ export class TodoManager {
       // Actions
       const actionsEl = document.createElement('div');
       actionsEl.className = 'todo-actions';
+
+      // Priority toggle button
+      const priorityBtn = document.createElement('button');
+      priorityBtn.className = `todo-btn btn-priority priority-${todo.priority || 'none'}`;
+      const priorityTitles = {
+        none: 'Chưa ưu tiên (Nhấp để đặt mức độ)',
+        low: 'Ưu tiên: THẤP (Nhấp để đổi)',
+        medium: 'Ưu tiên: VỪA (Nhấp để đổi)',
+        high: 'Ưu tiên: CAO (Nhấp để đổi)'
+      };
+      priorityBtn.title = priorityTitles[todo.priority || 'none'];
+      priorityBtn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="${todo.priority && todo.priority !== 'none' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+          <line x1="4" y1="22" x2="4" y2="15"></line>
+        </svg>
+      `;
+      priorityBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.handleCyclePriority(todo.id);
+      });
+      actionsEl.appendChild(priorityBtn);
+
+      // Deadline button (allows adding/editing deadline on any note)
+      const deadlineBtn = document.createElement('button');
+      deadlineBtn.className = `todo-btn btn-deadline ${todo.due_date ? 'has-deadline' : ''}`;
+      deadlineBtn.title = todo.due_date ? 'Chỉnh sửa hạn chót' : 'Thêm thời gian hạn chót (Deadline)';
+      deadlineBtn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      `;
+      deadlineBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openDeadlinePopover(todo.id);
+      });
+      actionsEl.appendChild(deadlineBtn);
 
       const delBtn = document.createElement('button');
       delBtn.className = 'todo-btn btn-delete';

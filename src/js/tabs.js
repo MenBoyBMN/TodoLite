@@ -286,10 +286,141 @@ export class TabManager {
         tabEl.appendChild(closeBtn);
       }
 
-      // Switch tab on click
-      tabEl.addEventListener('click', () => this.handleSwitchTab(tab.id));
+      // Drag reordering & click to switch
+      this.attachTabDragEvents(tabEl, tab);
 
       this.tabsListEl.appendChild(tabEl);
+    });
+  }
+
+  attachTabDragEvents(tabEl, tab) {
+    let startX = 0;
+    let startY = 0;
+    let isDragging = false;
+    let hasDragged = false;
+    let ghostEl = null;
+    let indicator = null;
+    let targetSlot = null;
+
+    const onPointerMove = (e) => {
+      const deltaX = e.clientX - startX;
+
+      if (!isDragging) {
+        if (Math.abs(deltaX) < 5) return;
+        isDragging = true;
+        hasDragged = true;
+        tabEl.classList.add('is-dragging-tab');
+
+        ghostEl = tabEl.cloneNode(true);
+        ghostEl.className = 'tab-drag-ghost';
+        ghostEl.style.width = `${tabEl.offsetWidth}px`;
+        ghostEl.style.left = `${e.clientX - 25}px`;
+        ghostEl.style.top = `${tabEl.getBoundingClientRect().top}px`;
+        document.body.appendChild(ghostEl);
+
+        indicator = document.createElement('div');
+        indicator.className = 'tab-drop-indicator';
+        this.tabsListEl.appendChild(indicator);
+      }
+
+      if (ghostEl) {
+        ghostEl.style.left = `${e.clientX - 25}px`;
+      }
+
+      // Calculate slot
+      const allTabs = Array.from(this.tabsListEl.querySelectorAll('.tab-item:not(.tab-drag-ghost)'));
+      let slot = allTabs.length;
+      for (let i = 0; i < allTabs.length; i++) {
+        const rect = allTabs[i].getBoundingClientRect();
+        if (e.clientX < rect.left + rect.width / 2) {
+          slot = i;
+          break;
+        }
+      }
+      targetSlot = slot;
+
+      if (indicator && allTabs.length > 0) {
+        let left = 0;
+        if (slot === 0) {
+          left = allTabs[0].offsetLeft - 2;
+        } else if (slot === allTabs.length) {
+          const last = allTabs[allTabs.length - 1];
+          left = last.offsetLeft + last.offsetWidth + 2;
+        } else {
+          const prev = allTabs[slot - 1];
+          const next = allTabs[slot];
+          left = (prev.offsetLeft + prev.offsetWidth + next.offsetLeft) / 2 - 1;
+        }
+        indicator.style.left = `${left}px`;
+        indicator.style.display = 'block';
+      }
+    };
+
+    const onPointerUp = async (e) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+
+      if (ghostEl) {
+        ghostEl.remove();
+        ghostEl = null;
+      }
+      if (indicator) {
+        indicator.remove();
+        indicator = null;
+      }
+      tabEl.classList.remove('is-dragging-tab');
+
+      if (isDragging && targetSlot !== null) {
+        const { tabs } = store.getState();
+        const originIndex = tabs.findIndex(t => t.id === tab.id);
+
+        if (originIndex !== -1 && targetSlot !== originIndex && targetSlot !== originIndex + 1) {
+          const reordered = [...tabs];
+          const [moved] = reordered.splice(originIndex, 1);
+          const insertIndex = targetSlot > originIndex ? targetSlot - 1 : targetSlot;
+          reordered.splice(insertIndex, 0, moved);
+
+          const orderMap = reordered.map((t, idx) => ({ id: t.id, sort_order: idx }));
+
+          try {
+            await Bridge.invoke('reorder_tabs', { items: orderMap });
+          } catch (err) {
+            console.error('Failed to persist tab reorder:', err);
+          }
+
+          const updatedTabs = reordered.map((t, idx) => ({ ...t, sort_order: idx }));
+          store.setState({ tabs: updatedTabs });
+        }
+      }
+
+      isDragging = false;
+      setTimeout(() => {
+        hasDragged = false;
+      }, 60);
+    };
+
+    tabEl.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.tab-close-btn') || e.target.closest('.tab-title-edit')) return;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      isDragging = false;
+      hasDragged = false;
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    });
+
+    tabEl.addEventListener('click', (e) => {
+      if (hasDragged) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      this.handleSwitchTab(tab.id);
     });
   }
 }

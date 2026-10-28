@@ -124,6 +124,17 @@
   box-shadow: var(--min-shadow-card) !important;
 }
 
+/* Minimalist Search Result Highlight - Vivid Yellow Frame & Glow */
+[data-style="minimal"] .todo-item.search-highlight-yellow-glow {
+  border: 2.5px solid #f59e0b !important;
+  outline: 2.5px solid #facc15 !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.65), 0 0 24px rgba(245, 158, 11, 0.5) !important;
+  animation: searchYellowBorderPulse 1s ease-in-out infinite alternate !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
 [data-style="minimal"] .todo-item:hover {
   background: var(--min-bg-card-hover) !important;
   border-color: var(--min-border-card-hover) !important;

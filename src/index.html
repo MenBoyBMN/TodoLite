@@ -6,10 +6,10 @@
   <meta name="description" content="TodoLite - Sổ tay ghi chú việc cần làm siêu nhẹ, chạy System Tray, luôn hiển thị trên cùng (Always on Top).">
   <title>TodoLite — Sổ Tay Việc Cần Làm</title>
 
-  <!-- Google Fonts: Inter & Caveat -->
+  <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="css/variables.css">
@@ -169,6 +169,24 @@
       <div id="note-editor-area" class="note-editor-area" style="display: none;">
         <!-- Rich Formatting Toolbar -->
         <div class="note-toolbar" id="note-toolbar">
+          <!-- Undo / Redo History Group (Max 3 Redo Levels) -->
+          <div class="toolbar-group">
+            <button type="button" class="note-tool-btn" id="btn-note-undo" title="Hoàn tác (Ctrl+Z)" disabled>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7v6h6"></path>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+              </svg>
+            </button>
+            <button type="button" class="note-tool-btn" id="btn-note-redo" title="Làm lại (Ctrl+Y, tối đa 3 lần)" disabled>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 7v6h-6"></path>
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
           <!-- Text Styling Group -->
           <div class="toolbar-group">
             <button type="button" class="note-tool-btn" data-command="bold" title="In đậm (Ctrl+B)">
@@ -534,9 +552,19 @@
           <p class="focus-completed-desc">
             Bạn đã hoàn thành trọn vẹn toàn bộ thời gian làm việc mục tiêu đã đặt ra. Hãy dành thời gian thư giãn và nạp lại năng lượng nhé! ✨
           </p>
-          <button type="button" id="btn-focus-restart" class="btn-start-focus-session" style="max-width: 220px;">
-            Thiết Lập Phiên Mới
-          </button>
+          <div class="focus-completed-actions" style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+            <button type="button" id="btn-focus-stop-alarm" class="btn-focus-stop-alarm" style="display: none;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+              Tắt Âm Báo Hết Giờ
+            </button>
+            <button type="button" id="btn-focus-restart" class="btn-start-focus-session" style="max-width: 220px;">
+              Thiết Lập Phiên Mới
+            </button>
+          </div>
         </div>
       </div>
 

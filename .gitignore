@@ -11,6 +11,11 @@ yarn-debug.log*
 yarn-error.log*
 err.txt
 out.txt
+stderr.txt
+stdout.txt
+
+# Media & showcase build caches
+Showcase/build_cache/
 
 # OS generated files
 .DS_Store

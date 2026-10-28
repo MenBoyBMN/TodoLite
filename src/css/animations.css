@@ -48,40 +48,4 @@
   animation: pulseGlow 1.5s infinite;
 }
 
-/* Modal / Dropdown / Popover Animation */
-.popover-menu {
-  position: absolute;
-  background: var(--bg-popover, rgba(18, 24, 38, 0.96));
-  border: 1px solid var(--border-popover, var(--border-color));
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-popover, var(--shadow-hover));
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  z-index: 200;
-  animation: slideInDown 0.15s ease-out;
-}
 
-.popover-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: var(--text-primary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  width: 100%;
-  text-align: left;
-  transition: all var(--trans-fast);
-}
-
-.popover-item:hover {
-  background: var(--accent-subtle);
-  color: var(--accent-color);
-}

@@ -6,7 +6,6 @@
 const STORAGE_KEY_TABS = 'todolite_tabs_data';
 const STORAGE_KEY_NOTE_TABS = 'todolite_note_tabs_data';
 const STORAGE_KEY_TODOS = 'todolite_todos_data';
-const STORAGE_KEY_SETTINGS = 'todolite_settings_data';
 const STORAGE_KEY_NOTES = 'todolite_notes_data';
 
 // Initial default seed note tabs
@@ -81,12 +80,20 @@ export class Bridge {
       res.dueDate = dueDate;
       res.text = args.text || '';
       res.priority = args.priority || 'none';
-    } else if (command === 'reorder_todos') {
+    } else if (command === 'reorder_todos' || command === 'reorder_tabs' || command === 'reorder_note_tabs') {
       res.items = (args.items || []).map(item => ({
         id: item.id,
         sort_order: item.sort_order ?? item.sortOrder ?? 0,
         sortOrder: item.sort_order ?? item.sortOrder ?? 0
       }));
+    } else if (command === 'update_todo_priority') {
+      res.id = args.id;
+      res.priority = args.priority || 'none';
+    } else if (command === 'move_todo_to_tab') {
+      const tabId = args.tab_id || args.tabId;
+      res.id = args.id;
+      res.tab_id = tabId;
+      res.tabId = tabId;
     } else if (command === 'update_todo_deadline') {
       const dueDate = args.due_date !== undefined ? args.due_date : (args.dueDate !== undefined ? args.dueDate : null);
       res.id = args.id;
@@ -189,6 +196,20 @@ export class Bridge {
         todos[idx] = result;
         localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
       }
+    } else if (command === 'update_todo_priority' && result) {
+      const todos = this.fallbackHandler('get_all_todos');
+      const idx = todos.findIndex(t => t.id === result.id);
+      if (idx !== -1) {
+        todos[idx] = result;
+        localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+      }
+    } else if (command === 'move_todo_to_tab' && result) {
+      const todos = this.fallbackHandler('get_all_todos');
+      const idx = todos.findIndex(t => t.id === result.id);
+      if (idx !== -1) {
+        todos[idx] = result;
+        localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+      }
     } else if (command === 'delete_todo') {
       let todos = this.fallbackHandler('get_all_todos');
       todos = todos.filter(t => t.id !== args.id);
@@ -200,6 +221,22 @@ export class Bridge {
         if (map.has(t.id)) t.sort_order = map.get(t.id);
       });
       localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+    } else if (command === 'reorder_tabs') {
+      let tabs = this.fallbackHandler('get_all_tabs');
+      const map = new Map((args.items || []).map(item => [item.id, item.sort_order ?? item.sortOrder]));
+      tabs.forEach(t => {
+        if (map.has(t.id)) t.sort_order = map.get(t.id);
+      });
+      tabs.sort((a, b) => a.sort_order - b.sort_order);
+      localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
+    } else if (command === 'reorder_note_tabs') {
+      let noteTabs = this.fallbackHandler('get_all_note_tabs');
+      const map = new Map((args.items || []).map(item => [item.id, item.sort_order ?? item.sortOrder]));
+      noteTabs.forEach(t => {
+        if (map.has(t.id)) t.sort_order = map.get(t.id);
+      });
+      noteTabs.sort((a, b) => a.sort_order - b.sort_order);
+      localStorage.setItem(STORAGE_KEY_NOTE_TABS, JSON.stringify(noteTabs));
     } else if (command === 'create_tab' && result) {
       const tabs = this.fallbackHandler('get_all_tabs');
       if (!tabs.some(t => t.id === result.id)) {
@@ -383,6 +420,17 @@ export class Bridge {
         return true;
       }
 
+      case 'reorder_tabs': {
+        let tabs = this.fallbackHandler('get_all_tabs');
+        const map = new Map((args.items || []).map(item => [item.id, item.sort_order]));
+        tabs.forEach(t => {
+          if (map.has(t.id)) t.sort_order = map.get(t.id);
+        });
+        tabs.sort((a, b) => a.sort_order - b.sort_order);
+        localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
+        return true;
+      }
+
       case 'get_all_todos': {
         const raw = localStorage.getItem(STORAGE_KEY_TODOS);
         if (!raw) {
@@ -441,6 +489,31 @@ export class Bridge {
         const index = todos.findIndex(t => t.id === args.id);
         if (index !== -1) {
           todos[index].due_date = args.due_date !== undefined ? args.due_date : (args.dueDate !== undefined ? args.dueDate : null);
+          localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+          return todos[index];
+        }
+        throw new Error('Todo not found');
+      }
+
+      case 'update_todo_priority': {
+        const todos = this.fallbackHandler('get_all_todos');
+        const index = todos.findIndex(t => t.id === args.id);
+        if (index !== -1) {
+          todos[index].priority = args.priority || 'none';
+          localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+          return todos[index];
+        }
+        throw new Error('Todo not found');
+      }
+
+      case 'move_todo_to_tab': {
+        const todos = this.fallbackHandler('get_all_todos');
+        const index = todos.findIndex(t => t.id === args.id);
+        if (index !== -1) {
+          const targetTabId = args.tab_id || args.tabId;
+          todos[index].tab_id = targetTabId;
+          const minSort = todos.filter(t => t.tab_id === targetTabId).reduce((min, t) => Math.min(min, t.sort_order ?? 0), 0);
+          todos[index].sort_order = minSort - 1;
           localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
           return todos[index];
         }
@@ -553,6 +626,17 @@ export class Bridge {
         let notes = this.fallbackHandler('get_all_notes_internal');
         delete notes[args.id];
         localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+        return true;
+      }
+
+      case 'reorder_note_tabs': {
+        let tabs = this.fallbackHandler('get_all_note_tabs');
+        const map = new Map((args.items || []).map(item => [item.id, item.sort_order]));
+        tabs.forEach(t => {
+          if (map.has(t.id)) t.sort_order = map.get(t.id);
+        });
+        tabs.sort((a, b) => a.sort_order - b.sort_order);
+        localStorage.setItem(STORAGE_KEY_NOTE_TABS, JSON.stringify(tabs));
         return true;
       }
 
