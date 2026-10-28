@@ -112,17 +112,6 @@
   white-space: nowrap;
 }
 
-.tab-drop-indicator {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  width: 2.5px;
-  background: var(--accent-color);
-  border-radius: 2px;
-  box-shadow: 0 0 8px var(--accent-color);
-  pointer-events: none;
-  z-index: 100;
-}
 
 .tab-title {
   overflow: hidden;

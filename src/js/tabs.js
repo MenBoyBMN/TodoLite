@@ -299,7 +299,6 @@ export class TabManager {
     let isDragging = false;
     let hasDragged = false;
     let ghostEl = null;
-    let indicator = null;
     let targetSlot = null;
 
     const onPointerMove = (e) => {
@@ -317,10 +316,6 @@ export class TabManager {
         ghostEl.style.left = `${e.clientX - 25}px`;
         ghostEl.style.top = `${tabEl.getBoundingClientRect().top}px`;
         document.body.appendChild(ghostEl);
-
-        indicator = document.createElement('div');
-        indicator.className = 'tab-drop-indicator';
-        this.tabsListEl.appendChild(indicator);
       }
 
       if (ghostEl) {
@@ -338,22 +333,6 @@ export class TabManager {
         }
       }
       targetSlot = slot;
-
-      if (indicator && allTabs.length > 0) {
-        let left = 0;
-        if (slot === 0) {
-          left = allTabs[0].offsetLeft - 2;
-        } else if (slot === allTabs.length) {
-          const last = allTabs[allTabs.length - 1];
-          left = last.offsetLeft + last.offsetWidth + 2;
-        } else {
-          const prev = allTabs[slot - 1];
-          const next = allTabs[slot];
-          left = (prev.offsetLeft + prev.offsetWidth + next.offsetLeft) / 2 - 1;
-        }
-        indicator.style.left = `${left}px`;
-        indicator.style.display = 'block';
-      }
     };
 
     const onPointerUp = async (e) => {
@@ -364,10 +343,6 @@ export class TabManager {
       if (ghostEl) {
         ghostEl.remove();
         ghostEl = null;
-      }
-      if (indicator) {
-        indicator.remove();
-        indicator = null;
       }
       tabEl.classList.remove('is-dragging-tab');
 
