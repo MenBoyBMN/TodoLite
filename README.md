@@ -206,6 +206,13 @@ Mọi đóng góp nhằm cải thiện TodoLite đều được hoan nghênh!
 
 ---
 
+## 🔐 Ký Số Mã Nguồn (Code Signing)
+
+Free code signing provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).  
+Xem chi tiết chính sách ký số tại [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+
+---
+
 ## 📄 Giấy Phép (License)
 
 Dự án được phân phối dưới giấy phép **MIT License**. Xem file `LICENSE` để biết thêm chi tiết.

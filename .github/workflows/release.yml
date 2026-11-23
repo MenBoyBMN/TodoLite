@@ -1,0 +1,106 @@
+name: Build, Sign & Release TodoLite
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v3.0.1)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build TodoLite (unsigned)
+        run: npm run build
+
+      - name: Prepare unsigned artifact directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-unsigned
+          Copy-Item -Path "TodoLite.exe" -Destination "dist-unsigned/TodoLite.exe"
+
+      - name: Upload unsigned artifact (required by SignPath)
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: todolite-unsigned
+          path: dist-unsigned/TodoLite.exe
+          if-no-files-found: error
+
+      - name: Submit signing request to SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist-signed
+
+      - name: Package final release assets
+        shell: pwsh
+        run: |
+          $tag = if ("${{ inputs.tag }}" -ne "") { "${{ inputs.tag }}" } elseif ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "dev" }
+          New-Item -ItemType Directory -Force -Path dist-release
+
+          $signedExe = if (Test-Path "dist-signed") { Get-ChildItem -Path "dist-signed" -Filter "*.exe" -Recurse | Select-Object -First 1 } else { $null }
+          if ($null -ne $signedExe) {
+            Write-Host "Using SignPath-signed executable: $($signedExe.FullName)"
+            Copy-Item -Path $signedExe.FullName -Destination "dist-release/TodoLite.exe"
+          } else {
+            Write-Host "SignPath not configured yet; using unsigned TodoLite.exe"
+            Copy-Item -Path "dist-unsigned/TodoLite.exe" -Destination "dist-release/TodoLite.exe"
+          }
+
+          $zipName = "TodoLite-$tag-Portable-x64.zip"
+          Compress-Archive -Path "dist-release/TodoLite.exe" -DestinationPath "dist-release/$zipName" -Force
+          echo "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload final release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: todolite-release
+          path: |
+            dist-release/TodoLite.exe
+            dist-release/${{ env.ZIP_NAME }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist-release/TodoLite.exe
+            dist-release/${{ env.ZIP_NAME }}
