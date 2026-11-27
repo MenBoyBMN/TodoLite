@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TodoLite — Lộ Trình Studio</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/roadmap-common.css">
+  <link rel="stylesheet" href="css/roadmap-studio.css">
+</head>
+<body>
+  <div id="studio-app" class="studio-app">
+    <!-- 1. Left Sidebar: Roadmap List & Visibility Management -->
+    <aside id="studio-sidebar" class="studio-sidebar">
+      <div class="studio-sidebar-header">
+        <div class="studio-brand">
+          <span class="studio-brand-icon" aria-hidden="true">🗺️</span>
+          <div class="studio-brand-text">
+            <h1 class="studio-brand-title">Lộ Trình Studio</h1>
+            <span class="studio-brand-sub">TodoLite Editor</span>
+          </div>
+        </div>
+        <button type="button" id="btn-studio-theme" class="studio-icon-btn" title="Đổi giao diện Sáng / Tối" aria-label="Đổi theme">
+          🌓
+        </button>
+      </div>
+
+      <div class="studio-sidebar-cta">
+        <button type="button" id="btn-studio-new" class="studio-primary-btn">
+          <span>+</span>
+          <span>Tạo lộ trình mới</span>
+        </button>
+      </div>
+
+      <div class="studio-sidebar-section-label">
+        <span>Danh sách lộ trình</span>
+        <span class="studio-hint-pill" title="Gạt công tắc để chọn lộ trình hiển thị trên TodoLite">👁️ TodoLite</span>
+      </div>
+
+      <div id="studio-roadmap-list" class="studio-roadmap-list">
+        <!-- Dynamically populated -->
+      </div>
+
+      <div class="studio-sidebar-footer">
+        <span id="studio-sidebar-count">Hiển thị trên TodoLite: 0 / 0</span>
+      </div>
+    </aside>
+
+    <!-- 2. Center Workspace: Toolbar & Diagram Canvas -->
+    <main id="studio-main" class="studio-main">
+      <header id="studio-toolbar" class="studio-toolbar">
+        <div class="studio-toolbar-left">
+          <input
+            type="text"
+            id="studio-roadmap-title-input"
+            class="studio-title-input"
+            placeholder="Tên lộ trình..."
+            maxlength="80"
+          />
+          <span id="studio-kind-badge" class="studio-kind-badge">Sơ đồ khối</span>
+          <span id="studio-save-status" class="studio-save-status saved">Đã lưu ✓</span>
+        </div>
+
+        <div class="studio-toolbar-right">
+          <!-- Flowchart Controls (Dạng 1) -->
+          <div id="studio-flowchart-tools" class="studio-tool-group">
+            <button type="button" id="btn-add-node" class="studio-tool-btn primary">
+              + Thêm khung
+            </button>
+            <button type="button" id="btn-toggle-connect" class="studio-tool-btn" title="Bật chế độ nối dây: bấm khung nguồn rồi bấm khung đích">
+              🔗 Nối dây
+            </button>
+          </div>
+
+          <!-- Timeline Controls (Dạng 2) -->
+          <div id="studio-timeline-tools" class="studio-tool-group" style="display: none;">
+            <label class="studio-date-field">
+              <span>Từ</span>
+              <input type="date" id="studio-tl-start" />
+            </label>
+            <label class="studio-date-field">
+              <span>Đến</span>
+              <input type="date" id="studio-tl-end" />
+            </label>
+            <button type="button" id="btn-add-milestone" class="studio-tool-btn primary">
+              + Thêm mốc
+            </button>
+          </div>
+
+          <!-- Shared Zoom Controls -->
+          <div class="studio-zoom-group">
+            <button type="button" id="btn-studio-zoom-out" class="studio-zoom-btn" title="Thu nhỏ">−</button>
+            <span id="studio-zoom-label" class="studio-zoom-label">100%</span>
+            <button type="button" id="btn-studio-zoom-in" class="studio-zoom-btn" title="Phóng to">+</button>
+            <button type="button" id="btn-studio-fit" class="studio-zoom-btn fit" title="Căn vừa màn hình">Căn vừa</button>
+          </div>
+        </div>
+      </header>
+
+      <div id="studio-connect-banner" class="studio-connect-banner" style="display: none;">
+        <span>🔗 <strong>Chế độ nối dây đang bật:</strong> Bấm vào khung nguồn rồi bấm vào khung đích để tạo đường nối (nhấn <code>Esc</code> để thoát).</span>
+      </div>
+
+      <div class="studio-canvas-wrap">
+        <div id="studio-canvas" class="studio-canvas"></div>
+
+        <!-- Empty Welcome Overlay when no roadmaps exist -->
+        <div id="studio-empty-overlay" class="studio-empty-overlay" style="display: none;">
+          <div class="studio-empty-card">
+            <div class="studio-empty-emoji">🧭</div>
+            <h2>Chưa có Lộ Trình nào</h2>
+            <p>Tạo một <strong>Sơ đồ khối (Dạng 1)</strong> để vẽ các bước liên kết, hoặc <strong>Thanh Timeline (Dạng 2)</strong> để theo dõi các cột mốc thời gian.</p>
+            <button type="button" id="btn-studio-empty-new" class="studio-primary-btn">
+              + Tạo lộ trình đầu tiên
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 3. Right Inspector: Context-Sensitive Properties -->
+    <aside id="studio-inspector" class="studio-inspector">
+      <!-- Overview Panel (Nothing Selected) -->
+      <section id="insp-overview" class="insp-panel">
+        <h2 class="insp-heading">Thông tin lộ trình</h2>
+        <div id="insp-overview-body" class="insp-body">
+          <div class="insp-field">
+            <label class="insp-label">Loại biểu đồ</label>
+            <div id="insp-ov-kind" class="insp-static-val">—</div>
+          </div>
+
+          <div class="insp-field insp-switch-row">
+            <div>
+              <div class="insp-label" style="margin-bottom: 2px;">Hiển thị trên TodoLite</div>
+              <div class="insp-subtext">Cho phép xem nhanh ở cửa sổ nhỏ</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="insp-ov-visible" />
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label">Tiến độ hoàn thành</label>
+            <div class="insp-progress-row">
+              <div class="insp-progress-track">
+                <div id="insp-ov-progress-bar" class="insp-progress-fill"></div>
+              </div>
+              <span id="insp-ov-progress-text" class="insp-progress-text">0/0</span>
+            </div>
+          </div>
+
+          <div class="insp-tips-box">
+            <div class="insp-tips-title">Mẹo thao tác nhanh</div>
+            <ul>
+              <li>Kéo nền trống để di chuyển vùng nhìn, <code>Ctrl + Cuộn</code> để thu phóng.</li>
+              <li><strong>Dạng 1:</strong> Kéo chấm <code>+</code> bên cạnh khung để nối dây nhanh, hoặc bấm vào đường nối để sửa nhãn/mũi tên.</li>
+              <li><strong>Dạng 2:</strong> Bấm vào mốc bất kỳ để sửa ngày, màu và mô tả.</li>
+              <li>Nhấn <code>Delete</code> khi đang chọn khung/đường nối/mốc để xóa nhanh.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Node Inspector (Dạng 1) -->
+      <section id="insp-node" class="insp-panel" style="display: none;">
+        <div class="insp-header-row">
+          <h2 class="insp-heading">Chỉnh sửa khung</h2>
+          <button type="button" class="insp-back-btn" id="btn-insp-clear-node" title="Bỏ chọn">✕</button>
+        </div>
+        <div class="insp-body">
+          <div class="insp-field">
+            <label class="insp-label" for="insp-node-title">Tiêu đề khung</label>
+            <input type="text" id="insp-node-title" class="insp-input" maxlength="100" placeholder="Nhập tên bước..." />
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label" for="insp-node-desc">Mô tả chi tiết</label>
+            <textarea id="insp-node-desc" class="insp-textarea" rows="4" placeholder="Ghi chú chi tiết sẽ hiển thị khi bấm vào khung ở TodoLite..."></textarea>
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label">Trạng thái</label>
+            <div id="insp-node-status-group" class="insp-status-group">
+              <button type="button" class="insp-status-btn" data-status="todo">○ Chưa làm</button>
+              <button type="button" class="insp-status-btn" data-status="doing">◐ Đang làm</button>
+              <button type="button" class="insp-status-btn" data-status="done">● Đã xong</button>
+            </div>
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label">Màu sắc</label>
+            <div id="insp-node-colors" class="insp-color-grid"></div>
+          </div>
+
+          <div class="insp-danger-zone">
+            <button type="button" id="btn-delete-node" class="studio-danger-btn">
+              🗑️ Xóa khung này
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Edge Inspector (Dạng 1) -->
+      <section id="insp-edge" class="insp-panel" style="display: none;">
+        <div class="insp-header-row">
+          <h2 class="insp-heading">Đường nối</h2>
+          <button type="button" class="insp-back-btn" id="btn-insp-clear-edge" title="Bỏ chọn">✕</button>
+        </div>
+        <div class="insp-body">
+          <div class="insp-field">
+            <label class="insp-label">Kiểu đường nối</label>
+            <div id="insp-edge-style-group" class="insp-status-group two-cols">
+              <button type="button" class="insp-status-btn" data-arrow="true">→ Mũi tên</button>
+              <button type="button" class="insp-status-btn" data-arrow="false">— Nét liền</button>
+            </div>
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label" for="insp-edge-label">Nhãn trên đường nối (tùy chọn)</label>
+            <input type="text" id="insp-edge-label" class="insp-input" maxlength="40" placeholder="VD: Sau khi xong..." />
+          </div>
+
+          <div class="insp-field">
+            <button type="button" id="btn-reverse-edge" class="studio-secondary-btn">
+              ⇄ Đảo chiều nối
+            </button>
+          </div>
+
+          <div class="insp-danger-zone">
+            <button type="button" id="btn-delete-edge" class="studio-danger-btn">
+              🗑️ Xóa đường nối
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Milestone Inspector (Dạng 2) -->
+      <section id="insp-milestone" class="insp-panel" style="display: none;">
+        <div class="insp-header-row">
+          <h2 class="insp-heading">Chỉnh sửa cột mốc</h2>
+          <button type="button" class="insp-back-btn" id="btn-insp-clear-ms" title="Bỏ chọn">✕</button>
+        </div>
+        <div class="insp-body">
+          <div class="insp-field">
+            <label class="insp-label" for="insp-ms-date">Ngày mốc</label>
+            <input type="date" id="insp-ms-date" class="insp-input" />
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label" for="insp-ms-title">Tên cột mốc</label>
+            <input type="text" id="insp-ms-title" class="insp-input" maxlength="100" placeholder="VD: Mốc A..." />
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label" for="insp-ms-desc">Mô tả chi tiết</label>
+            <textarea id="insp-ms-desc" class="insp-textarea" rows="4" placeholder="Ghi chú cho cột mốc này..."></textarea>
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label">Trạng thái</label>
+            <div id="insp-ms-status-group" class="insp-status-group">
+              <button type="button" class="insp-status-btn" data-status="todo">○ Chưa làm</button>
+              <button type="button" class="insp-status-btn" data-status="doing">◐ Đang làm</button>
+              <button type="button" class="insp-status-btn" data-status="done">● Đã xong</button>
+            </div>
+          </div>
+
+          <div class="insp-field">
+            <label class="insp-label">Màu sắc</label>
+            <div id="insp-ms-colors" class="insp-color-grid"></div>
+          </div>
+
+          <div class="insp-danger-zone">
+            <button type="button" id="btn-delete-milestone" class="studio-danger-btn">
+              🗑️ Xóa cột mốc này
+            </button>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- Create Roadmap Modal -->
+  <div id="studio-create-modal" class="studio-modal-backdrop" aria-hidden="true">
+    <div class="studio-modal" role="dialog" aria-modal="true" aria-labelledby="create-modal-title">
+      <div class="studio-modal-header">
+        <h3 id="create-modal-title">Tạo Lộ Trình Mới</h3>
+        <button type="button" id="btn-create-close" class="studio-modal-close">✕</button>
+      </div>
+      <div class="studio-modal-body">
+        <div class="insp-field">
+          <label class="insp-label" for="create-rm-title">Tên lộ trình</label>
+          <input type="text" id="create-rm-title" class="insp-input" maxlength="80" placeholder="VD: Lộ trình học tiếng Anh 2026..." />
+        </div>
+
+        <div class="insp-field">
+          <label class="insp-label">Chọn dạng hiển thị</label>
+          <div class="create-kind-grid">
+            <label class="create-kind-card selected" data-kind="flowchart">
+              <input type="radio" name="create-rm-kind" value="flowchart" checked />
+              <div class="kind-card-icon">🕸️</div>
+              <div class="kind-card-title">Dạng 1: Sơ đồ khối</div>
+              <div class="kind-card-desc">Các khung kết nối với nhau bằng đường nối & mũi tên tự do.</div>
+            </label>
+            <label class="create-kind-card" data-kind="timeline">
+              <input type="radio" name="create-rm-kind" value="timeline" />
+              <div class="kind-card-icon">📅</div>
+              <div class="kind-card-title">Dạng 2: Thanh Timeline</div>
+              <div class="kind-card-desc">Trục thời gian dài có mốc ngày bắt đầu – kết thúc & các cột mốc.</div>
+            </label>
+          </div>
+        </div>
+
+        <label class="create-visible-check">
+          <input type="checkbox" id="create-rm-visible" checked />
+          <span>Hiển thị ngay lên cửa sổ TodoLite</span>
+        </label>
+      </div>
+      <div class="studio-modal-footer">
+        <button type="button" id="btn-create-cancel" class="studio-secondary-btn">Hủy</button>
+        <button type="button" id="btn-create-submit" class="studio-primary-btn">Tạo lộ trình</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div id="studio-confirm-modal" class="studio-modal-backdrop" aria-hidden="true">
+    <div class="studio-modal studio-confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+      <div class="studio-modal-header">
+        <h3 id="confirm-modal-title">Xác nhận xóa</h3>
+        <button type="button" id="btn-confirm-close" class="studio-modal-close">✕</button>
+      </div>
+      <div class="studio-modal-body">
+        <p id="confirm-modal-message" class="studio-confirm-msg"></p>
+      </div>
+      <div class="studio-modal-footer">
+        <button type="button" id="btn-confirm-cancel" class="studio-secondary-btn">Hủy</button>
+        <button type="button" id="btn-confirm-ok" class="studio-danger-solid-btn">Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="studio-toast" class="studio-toast" role="alert">
+    <span id="studio-toast-text"></span>
+  </div>
+
+  <script type="module" src="js/roadmap-studio.js"></script>
+</body>
+</html>

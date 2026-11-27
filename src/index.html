@@ -22,6 +22,8 @@
   <link rel="stylesheet" href="css/note.css">
   <link rel="stylesheet" href="css/focus.css">
   <link rel="stylesheet" href="css/calculator.css">
+  <link rel="stylesheet" href="css/roadmap-common.css">
+  <link rel="stylesheet" href="css/roadmap-viewer.css">
   <link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
@@ -49,6 +51,19 @@
       <div class="titlebar-drag-spacer" data-tauri-drag-region></div>
 
       <div class="titlebar-actions">
+        <!-- Roadmap Quick Button -->
+        <button id="btn-open-roadmap" class="titlebar-roadmap-btn" data-tooltip="Xem danh sách Lộ Trình" aria-label="Lộ Trình">
+          <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="5" cy="6" r="3"></circle>
+            <circle cx="19" cy="6" r="3"></circle>
+            <circle cx="12" cy="18" r="3"></circle>
+            <path d="M8 6h8"></path>
+            <path d="M6.5 8.5 10.5 15.5"></path>
+            <path d="M17.5 8.5 13.5 15.5"></path>
+          </svg>
+          <span>Lộ trình</span>
+        </button>
+
         <!-- Settings Button -->
         <button id="btn-open-settings" class="action-btn btn-settings" data-tooltip="Cài đặt hệ thống (Ctrl+,)" aria-label="Cài đặt">
           <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -645,6 +660,82 @@
             </div>
           </div>
           <div id="calc-history-list" class="calc-history-list"></div>
+        </div>
+      </div>
+
+      <!-- Roadmap Read-Only Viewer Area -->
+      <div id="roadmap-viewer-area" class="roadmap-viewer-area" style="display: none;">
+        <!-- List View -->
+        <div id="roadmap-list-view" class="roadmap-list-view">
+          <div class="rm-viewer-header">
+            <div class="rm-viewer-heading">
+              <span class="rm-viewer-title">Lộ Trình</span>
+              <span id="roadmap-visible-count" class="rm-viewer-count">0</span>
+            </div>
+            <button type="button" id="btn-roadmap-open-studio" class="rm-studio-launch-btn" title="Mở cửa sổ lớn để tạo & chỉnh sửa Lộ trình">
+              <span>Mở trình sửa</span>
+              <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+
+          <div id="roadmap-list-container" class="rm-list-container">
+            <!-- Dynamically populated visible roadmaps -->
+          </div>
+
+          <div id="roadmap-empty-state" class="rm-empty-state" style="display: none;">
+            <div class="rm-empty-icon">🗺️</div>
+            <div class="rm-empty-title">Chưa có lộ trình nào hiển thị</div>
+            <p class="rm-empty-subtitle">Hãy mở Trình sửa Lộ Trình để tạo sơ đồ khối hoặc timeline mới và bật hiển thị lên TodoLite.</p>
+            <button type="button" id="btn-roadmap-empty-studio" class="rm-studio-cta-btn">
+              Tạo & Quản lý Lộ trình ↗
+            </button>
+          </div>
+        </div>
+
+        <!-- Detail Read-Only View -->
+        <div id="roadmap-detail-view" class="roadmap-detail-view" style="display: none;">
+          <div class="rm-detail-toolbar">
+            <button type="button" id="btn-roadmap-back" class="rm-back-btn" title="Quay lại danh sách" aria-label="Quay lại">
+              ←
+            </button>
+            <div class="rm-detail-heading">
+              <span id="roadmap-detail-title" class="rm-detail-title"></span>
+              <span id="roadmap-detail-badge" class="rm-detail-kind-badge"></span>
+            </div>
+            <div class="rm-detail-actions">
+              <div class="rm-zoom-group" title="Thu phóng & căn vừa">
+                <button type="button" id="btn-rm-zoom-out" class="rm-zoom-btn" aria-label="Thu nhỏ">−</button>
+                <span id="rm-zoom-label" class="rm-zoom-label">100%</span>
+                <button type="button" id="btn-rm-zoom-in" class="rm-zoom-btn" aria-label="Phóng to">+</button>
+                <button type="button" id="btn-rm-fit" class="rm-zoom-btn" title="Căn vừa khung">⊡</button>
+              </div>
+              <button type="button" id="btn-roadmap-edit-current" class="rm-edit-mini-btn" title="Mở trong trình sửa lớn">
+                Sửa ↗
+              </button>
+            </div>
+          </div>
+
+          <div class="rm-readonly-banner">
+            <span>👁️ Chế độ chỉ xem — Kéo nền để di chuyển, bấm vào khung/mốc để xem chi tiết</span>
+          </div>
+
+          <div id="roadmap-viewer-canvas" class="rm-viewer-canvas"></div>
+
+          <!-- Read-Only Item Detail Bottom Sheet -->
+          <div id="roadmap-detail-sheet" class="rm-detail-sheet" aria-hidden="true">
+            <div class="rm-sheet-header">
+              <div class="rm-sheet-title-wrap">
+                <span id="rm-sheet-color-dot" class="rm-sheet-color-dot"></span>
+                <h3 id="rm-sheet-title" class="rm-sheet-title"></h3>
+              </div>
+              <button type="button" id="btn-rm-sheet-close" class="rm-sheet-close" title="Đóng">✕</button>
+            </div>
+            <div class="rm-sheet-meta">
+              <span id="rm-sheet-status" class="rm-status-pill"></span>
+              <span id="rm-sheet-date" class="rm-sheet-date" style="display: none;"></span>
+            </div>
+            <p id="rm-sheet-desc" class="rm-sheet-desc"></p>
+          </div>
         </div>
       </div>
 
@@ -1354,7 +1445,7 @@
 
         <!-- Footer -->
         <div class="settings-modal-footer">
-          <span class="settings-version-tag">TodoLite v3.0.0</span>
+          <span class="settings-version-tag">TodoLite v3.1.0</span>
           <button type="button" id="btn-save-settings" class="btn-save-settings">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"></polyline>

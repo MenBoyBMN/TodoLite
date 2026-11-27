@@ -33,11 +33,23 @@ pub struct NoteItem {
     pub updated_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReorderItem {
     pub id: String,
     #[serde(alias = "sortOrder")]
     pub sort_order: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RoadmapItem {
+    pub id: String,
+    pub title: String,
+    pub kind: String,
+    pub is_visible: i32,
+    pub sort_order: i32,
+    pub data_json: String,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 pub struct DbState {
@@ -50,8 +62,25 @@ impl DbState {
         fs::create_dir_all(&app_dir).ok();
         let db_path = app_dir.join("todolite.db");
         let conn = Connection::open(db_path)?;
-        let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
+        let _ = conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             PRAGMA journal_mode = WAL;
+             PRAGMA synchronous = NORMAL;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA cache_size = -2000;",
+        );
 
+        let db = DbState {
+            conn: Mutex::new(conn),
+        };
+        db.init_tables()?;
+        Ok(db)
+    }
+
+    #[cfg(test)]
+    pub fn new_in_memory() -> Result<Self> {
+        let conn = Connection::open_in_memory()?;
+        let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
         let db = DbState {
             conn: Mutex::new(conn),
         };
@@ -225,6 +254,25 @@ impl DbState {
                 params!["note-seed-1", note_tab1_id, initial_note, &now],
             )?;
         }
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS roadmaps (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                kind TEXT NOT NULL CHECK(kind IN ('flowchart', 'timeline')),
+                is_visible INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                data_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_roadmaps_sort_order ON roadmaps (sort_order ASC, created_at ASC)",
+            [],
+        )?;
 
         Ok(())
     }
@@ -704,6 +752,150 @@ impl DbState {
         })
     }
 
+    // Roadmaps CRUD
+    fn map_roadmap_row(row: &rusqlite::Row<'_>) -> Result<RoadmapItem> {
+        Ok(RoadmapItem {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            kind: row.get(2)?,
+            is_visible: row.get(3)?,
+            sort_order: row.get(4)?,
+            data_json: row.get(5)?,
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
+        })
+    }
+
+    pub fn get_all_roadmaps(&self) -> Result<Vec<RoadmapItem>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, title, kind, is_visible, sort_order, data_json, created_at, updated_at
+             FROM roadmaps
+             ORDER BY sort_order ASC, created_at ASC",
+        )?;
+        let rows = stmt.query_map([], Self::map_roadmap_row)?;
+        rows.collect()
+    }
+
+    pub fn create_roadmap(
+        &self,
+        title: String,
+        kind: String,
+        is_visible: i32,
+        data_json: String,
+    ) -> Result<RoadmapItem> {
+        let conn = self.conn.lock().unwrap();
+        let valid_kind = match kind.trim() {
+            "timeline" => "timeline".to_string(),
+            _ => "flowchart".to_string(),
+        };
+        let clean_title = if title.trim().is_empty() {
+            "Lộ trình mới".to_string()
+        } else {
+            title.trim().to_string()
+        };
+        let next_sort: i32 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM roadmaps",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let visible_flag = if is_visible != 0 { 1 } else { 0 };
+
+        conn.execute(
+            "INSERT INTO roadmaps (id, title, kind, is_visible, sort_order, data_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &id,
+                &clean_title,
+                &valid_kind,
+                visible_flag,
+                next_sort,
+                &data_json,
+                &now,
+                &now
+            ],
+        )?;
+
+        Ok(RoadmapItem {
+            id,
+            title: clean_title,
+            kind: valid_kind,
+            is_visible: visible_flag,
+            sort_order: next_sort,
+            data_json,
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    pub fn update_roadmap_meta(
+        &self,
+        id: String,
+        title: String,
+        is_visible: i32,
+    ) -> Result<RoadmapItem> {
+        let conn = self.conn.lock().unwrap();
+        let clean_title = if title.trim().is_empty() {
+            "Lộ trình chưa đặt tên".to_string()
+        } else {
+            title.trim().to_string()
+        };
+        let visible_flag = if is_visible != 0 { 1 } else { 0 };
+        let updated_at = chrono::Utc::now().to_rfc3339();
+
+        conn.execute(
+            "UPDATE roadmaps SET title = ?1, is_visible = ?2, updated_at = ?3 WHERE id = ?4",
+            params![&clean_title, visible_flag, &updated_at, &id],
+        )?;
+
+        conn.query_row(
+            "SELECT id, title, kind, is_visible, sort_order, data_json, created_at, updated_at
+             FROM roadmaps WHERE id = ?1",
+            params![&id],
+            Self::map_roadmap_row,
+        )
+    }
+
+    pub fn update_roadmap_data(&self, id: String, data_json: String) -> Result<RoadmapItem> {
+        let conn = self.conn.lock().unwrap();
+        let updated_at = chrono::Utc::now().to_rfc3339();
+
+        conn.execute(
+            "UPDATE roadmaps SET data_json = ?1, updated_at = ?2 WHERE id = ?3",
+            params![&data_json, &updated_at, &id],
+        )?;
+
+        conn.query_row(
+            "SELECT id, title, kind, is_visible, sort_order, data_json, created_at, updated_at
+             FROM roadmaps WHERE id = ?1",
+            params![&id],
+            Self::map_roadmap_row,
+        )
+    }
+
+    pub fn delete_roadmap(&self, id: String) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM roadmaps WHERE id = ?1", params![&id])?;
+        Ok(())
+    }
+
+    pub fn reorder_roadmaps(&self, items: Vec<ReorderItem>) -> Result<()> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare("UPDATE roadmaps SET sort_order = ?1 WHERE id = ?2")?;
+            for item in items {
+                stmt.execute(params![item.sort_order, &item.id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn reset_database(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         let _ = conn.execute("PRAGMA foreign_keys = OFF;", []);
@@ -711,6 +903,7 @@ impl DbState {
         let _ = conn.execute("DELETE FROM tabs;", []);
         let _ = conn.execute("DELETE FROM notes;", []);
         let _ = conn.execute("DELETE FROM note_tabs;", []);
+        let _ = conn.execute("DELETE FROM roadmaps;", []);
         let _ = conn.execute("PRAGMA foreign_keys = ON;", []);
 
         drop(conn);
@@ -724,6 +917,7 @@ impl DbState {
         todos: Vec<TodoItem>,
         note_tabs: Vec<TabItem>,
         notes: Vec<NoteItem>,
+        roadmaps: Vec<RoadmapItem>,
     ) -> Result<()> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
@@ -733,6 +927,7 @@ impl DbState {
         let _ = tx.execute("DELETE FROM tabs;", []);
         let _ = tx.execute("DELETE FROM notes;", []);
         let _ = tx.execute("DELETE FROM note_tabs;", []);
+        let _ = tx.execute("DELETE FROM roadmaps;", []);
 
         for tab in tabs {
             tx.execute(
@@ -772,6 +967,28 @@ impl DbState {
             )?;
         }
 
+        for rm in roadmaps {
+            let valid_kind = match rm.kind.trim() {
+                "timeline" => "timeline",
+                _ => "flowchart",
+            };
+            let visible_flag = if rm.is_visible != 0 { 1 } else { 0 };
+            tx.execute(
+                "INSERT INTO roadmaps (id, title, kind, is_visible, sort_order, data_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    rm.id,
+                    rm.title,
+                    valid_kind,
+                    visible_flag,
+                    rm.sort_order,
+                    rm.data_json,
+                    rm.created_at,
+                    rm.updated_at
+                ],
+            )?;
+        }
+
         let _ = tx.execute("PRAGMA foreign_keys = ON;", []);
         tx.commit()?;
         Ok(())
@@ -783,5 +1000,118 @@ fn get_app_dir() -> PathBuf {
         PathBuf::from(app_data).join("TodoLite")
     } else {
         PathBuf::from(".todolite")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_roadmap_crud_and_reorder() {
+        let db = DbState::new_in_memory().expect("in-memory db init");
+
+        let rm1 = db
+            .create_roadmap(
+                "Học Rust".to_string(),
+                "flowchart".to_string(),
+                1,
+                r#"{"nodes":[],"edges":[]}"#.to_string(),
+            )
+            .expect("create flowchart roadmap");
+        let rm2 = db
+            .create_roadmap(
+                "Kế hoạch 2026".to_string(),
+                "timeline".to_string(),
+                0,
+                r#"{"startDate":"2026-01-01","endDate":"2027-01-01","milestones":[]}"#.to_string(),
+            )
+            .expect("create timeline roadmap");
+
+        let all = db.get_all_roadmaps().expect("get all roadmaps");
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].id, rm1.id);
+        assert_eq!(all[0].kind, "flowchart");
+        assert_eq!(all[0].is_visible, 1);
+        assert_eq!(all[1].id, rm2.id);
+        assert_eq!(all[1].kind, "timeline");
+        assert_eq!(all[1].is_visible, 0);
+
+        let updated_meta = db
+            .update_roadmap_meta(rm2.id.clone(), "Kế hoạch 2026 Pro".to_string(), 1)
+            .expect("update meta");
+        assert_eq!(updated_meta.title, "Kế hoạch 2026 Pro");
+        assert_eq!(updated_meta.is_visible, 1);
+
+        let new_json = r#"{"nodes":[{"id":"n1","title":"A"}],"edges":[]}"#.to_string();
+        let updated_data = db
+            .update_roadmap_data(rm1.id.clone(), new_json.clone())
+            .expect("update data");
+        assert_eq!(updated_data.data_json, new_json);
+
+        db.reorder_roadmaps(vec![
+            ReorderItem {
+                id: rm2.id.clone(),
+                sort_order: 0,
+            },
+            ReorderItem {
+                id: rm1.id.clone(),
+                sort_order: 1,
+            },
+        ])
+        .expect("reorder roadmaps");
+
+        let reordered = db.get_all_roadmaps().expect("get reordered");
+        assert_eq!(reordered[0].id, rm2.id);
+        assert_eq!(reordered[1].id, rm1.id);
+
+        db.delete_roadmap(rm1.id.clone()).expect("delete roadmap");
+        let remaining = db.get_all_roadmaps().expect("get remaining");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, rm2.id);
+    }
+
+    #[test]
+    fn test_restore_backup_with_and_without_roadmaps() {
+        let db = DbState::new_in_memory().expect("in-memory db init");
+
+        let sample_roadmap = RoadmapItem {
+            id: "rm-test-1".to_string(),
+            title: "Lộ trình mẫu".to_string(),
+            kind: "flowchart".to_string(),
+            is_visible: 1,
+            sort_order: 0,
+            data_json: r#"{"nodes":[],"edges":[]}"#.to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+        };
+
+        db.restore_backup(vec![], vec![], vec![], vec![], vec![sample_roadmap.clone()])
+            .expect("restore with roadmaps");
+        let after_restore = db.get_all_roadmaps().expect("get roadmaps after restore");
+        assert_eq!(after_restore.len(), 1);
+        assert_eq!(after_restore[0].title, "Lộ trình mẫu");
+
+        // Legacy backup without roadmaps field
+        db.restore_backup(vec![], vec![], vec![], vec![], vec![])
+            .expect("restore legacy empty roadmaps");
+        let after_legacy = db.get_all_roadmaps().expect("get roadmaps after legacy");
+        assert_eq!(after_legacy.len(), 0);
+    }
+
+    #[test]
+    fn test_reset_database_clears_roadmaps() {
+        let db = DbState::new_in_memory().expect("in-memory db init");
+        db.create_roadmap(
+            "Test".to_string(),
+            "flowchart".to_string(),
+            1,
+            "{}".to_string(),
+        )
+        .expect("create");
+        assert_eq!(db.get_all_roadmaps().unwrap().len(), 1);
+
+        db.reset_database().expect("reset database");
+        assert_eq!(db.get_all_roadmaps().unwrap().len(), 0);
     }
 }

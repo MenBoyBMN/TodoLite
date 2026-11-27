@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for TodoLite",
-  "windows": ["main"],
+  "windows": ["main", "roadmap-studio"],
   "permissions": [
     "core:default",
     "core:window:allow-set-always-on-top",

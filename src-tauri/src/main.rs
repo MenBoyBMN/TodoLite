@@ -9,8 +9,15 @@ use std::str::FromStr;
 use winreg::{enums::*, RegKey};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
-use db::{DbState, NoteItem, ReorderItem, TabItem, TodoItem};
-use tauri::{Manager, State, WebviewWindow};
+use db::{DbState, NoteItem, ReorderItem, RoadmapItem, TabItem, TodoItem};
+use serde::Serialize;
+use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+#[derive(Serialize, Clone)]
+struct ThemeSyncPayload {
+    theme: String,
+    style: String,
+}
 
 // ----------------- TAB COMMANDS -----------------
 #[tauri::command]
@@ -146,6 +153,136 @@ fn upsert_note(tab_id: String, content: String, state: State<DbState>) -> Result
     state.upsert_note(tab_id, content).map_err(|e| e.to_string())
 }
 
+// ----------------- ROADMAP COMMANDS -----------------
+#[tauri::command]
+fn get_all_roadmaps(state: State<DbState>) -> Result<Vec<RoadmapItem>, String> {
+    state.get_all_roadmaps().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_roadmap(
+    title: String,
+    kind: String,
+    is_visible: i32,
+    data_json: String,
+    state: State<DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<RoadmapItem, String> {
+    let item = state
+        .create_roadmap(title, kind, is_visible, data_json)
+        .map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(item)
+}
+
+#[tauri::command]
+fn update_roadmap_meta(
+    id: String,
+    title: String,
+    is_visible: i32,
+    state: State<DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<RoadmapItem, String> {
+    let item = state
+        .update_roadmap_meta(id, title, is_visible)
+        .map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(item)
+}
+
+#[tauri::command]
+fn update_roadmap_data(
+    id: String,
+    data_json: String,
+    state: State<DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<RoadmapItem, String> {
+    let item = state
+        .update_roadmap_data(id, data_json)
+        .map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(item)
+}
+
+#[tauri::command]
+fn delete_roadmap(
+    id: String,
+    state: State<DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    state.delete_roadmap(id).map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn reorder_roadmaps(
+    items: Vec<ReorderItem>,
+    state: State<DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    state.reorder_roadmaps(items).map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+async fn open_roadmap_studio(
+    roadmap_id: Option<String>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    if let Some(win) = app_handle.get_webview_window("roadmap-studio") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+        if let Some(ref rid) = roadmap_id {
+            if !rid.trim().is_empty() {
+                let _ = win.emit("roadmap_studio_select", rid.trim().to_string());
+            }
+        }
+        return Ok(());
+    }
+
+    let mut builder = WebviewWindowBuilder::new(
+        &app_handle,
+        "roadmap-studio",
+        WebviewUrl::App("roadmap-studio.html".into()),
+    )
+    .title("TodoLite — Lộ Trình Studio")
+    .inner_size(1160.0, 740.0)
+    .min_inner_size(860.0, 560.0)
+    .resizable(true)
+    .maximizable(true)
+    .decorations(true)
+    .always_on_top(false)
+    .center();
+
+    if let Some(ref rid) = roadmap_id {
+        let clean = rid.trim();
+        if !clean.is_empty() {
+            let escaped = clean.replace('\\', "\\\\").replace('"', "\\\"");
+            builder = builder.initialization_script(&format!(
+                "window.__INITIAL_ROADMAP_ID__ = \"{}\";",
+                escaped
+            ));
+        }
+    }
+
+    builder.build().map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn sync_theme_to_windows(
+    theme: String,
+    style: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let _ = app_handle.emit("app_theme_synced", ThemeSyncPayload { theme, style });
+    Ok(())
+}
+
 // ----------------- WINDOW ACTIONS -----------------
 #[tauri::command]
 fn set_always_on_top(always_on_top: bool, window: WebviewWindow) -> Result<(), String> {
@@ -236,8 +373,10 @@ fn open_export_directory(directory: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn reset_database(state: State<DbState>) -> Result<(), String> {
-    state.reset_database().map_err(|e| e.to_string())
+fn reset_database(state: State<DbState>, app_handle: tauri::AppHandle) -> Result<(), String> {
+    state.reset_database().map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(())
 }
 
 #[tauri::command]
@@ -246,9 +385,15 @@ fn restore_backup(
     todos: Vec<TodoItem>,
     note_tabs: Vec<TabItem>,
     notes: Vec<NoteItem>,
+    roadmaps: Option<Vec<RoadmapItem>>,
     state: State<DbState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    state.restore_backup(tabs, todos, note_tabs, notes).map_err(|e| e.to_string())
+    state
+        .restore_backup(tabs, todos, note_tabs, notes, roadmaps.unwrap_or_default())
+        .map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("roadmaps_changed", ());
+    Ok(())
 }
 
 // ----------------- AUTOSTART ACTIONS -----------------
@@ -373,6 +518,14 @@ fn main() {
             get_all_notes,
             get_note_by_tab,
             upsert_note,
+            get_all_roadmaps,
+            create_roadmap,
+            update_roadmap_meta,
+            update_roadmap_data,
+            delete_roadmap,
+            reorder_roadmaps,
+            open_roadmap_studio,
+            sync_theme_to_windows,
             set_always_on_top,
             minimize_window,
             hide_window,

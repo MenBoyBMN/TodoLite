@@ -3,6 +3,7 @@
  */
 
 import { store } from './state.js';
+import { Bridge } from './bridge.js';
 
 export class ThemeManager {
   constructor() {
@@ -84,14 +85,22 @@ export class ThemeManager {
     const appWindow = document.getElementById('app-window');
 
     if (appWindow) {
-      appWindow.classList.remove('mode-note', 'mode-focus', 'mode-calculator');
+      appWindow.classList.remove('mode-note', 'mode-focus', 'mode-calculator', 'mode-roadmap');
       if (mode === 'note') {
         appWindow.classList.add('mode-note');
       } else if (mode === 'focus') {
         appWindow.classList.add('mode-focus');
       } else if (mode === 'calculator') {
         appWindow.classList.add('mode-calculator');
+      } else if (mode === 'roadmap') {
+        appWindow.classList.add('mode-roadmap');
       }
+    }
+
+    // Update Titlebar Roadmap button active state
+    const btnRoadmap = document.getElementById('btn-open-roadmap');
+    if (btnRoadmap) {
+      btnRoadmap.classList.toggle('active', mode === 'roadmap');
     }
 
     // Update Bottom Tab Buttons active state
@@ -109,6 +118,10 @@ export class ThemeManager {
     document.documentElement.setAttribute('data-style', style);
     localStorage.setItem('todolite_style', style);
     store.setState({ style });
+    Bridge.invoke('sync_theme_to_windows', {
+      theme: store.getState().theme || 'light',
+      style
+    }).catch(() => {});
 
     if (this.btnStyle) {
       if (style === 'minimal') {
@@ -129,6 +142,10 @@ export class ThemeManager {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('todolite_theme', theme);
     store.setState({ theme });
+    Bridge.invoke('sync_theme_to_windows', {
+      theme,
+      style: store.getState().style || 'glass'
+    }).catch(() => {});
 
     if (this.themeIcon) {
       if (theme === 'dark') {

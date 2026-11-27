@@ -458,8 +458,13 @@
 .note-editor hr {
   border: none;
   height: 1px;
-  background: var(--border-color-subtle);
+  background: rgba(15, 23, 42, 0.28);
   margin: 14px 0;
+  border-radius: 1px;
+}
+
+[data-theme="dark"] .note-editor hr {
+  background: rgba(226, 232, 240, 0.38);
 }
 
 .note-editor blockquote {

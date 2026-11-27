@@ -12,6 +12,7 @@ import { ThemeManager } from './theme.js';
 import { NoteManager } from './note.js';
 import { FocusSessionManager } from './focus.js';
 import { CalculatorManager } from './calculator.js';
+import { RoadmapViewerManager } from './roadmap-viewer.js';
 import { SettingsManager, matchesShortcut } from './settings.js';
 
 export function hideToast() {
@@ -69,6 +70,7 @@ class TodoLiteApp {
     this.noteManager = null;
     this.focusSessionManager = null;
     this.calculatorManager = null;
+    this.roadmapViewerManager = null;
     this.settingsManager = null;
 
     this.init();
@@ -84,11 +86,13 @@ class TodoLiteApp {
     this.noteManager = new NoteManager();
     this.focusSessionManager = new FocusSessionManager();
     this.calculatorManager = new CalculatorManager();
+    this.roadmapViewerManager = new RoadmapViewerManager({ themeManager: this.themeManager });
     this.settingsManager = new SettingsManager({
       themeManager: this.themeManager,
       focusManager: this.focusSessionManager,
       todoManager: this.todoManager,
-      noteManager: this.noteManager
+      noteManager: this.noteManager,
+      roadmapViewerManager: this.roadmapViewerManager
     });
 
     // Wire up cross-references between managers
@@ -106,16 +110,18 @@ class TodoLiteApp {
     // 2.1 Setup Guide Modal
     this.setupGuideModal();
 
-    // 3. Load initial data from SQLite / Bridge
+    // 3. Load initial data from SQLite / Bridge (roadmaps load lazily on first open or when starting in roadmap mode)
     await Promise.all([
       this.tabManager.loadInitialData(),
       this.noteManager.loadInitialData()
     ]);
 
-    // If starting in note mode, load active note tab content
+    // If starting in note or roadmap mode, load its active content immediately
     if (store.getState().viewMode === 'note') {
       this.noteManager.updateCurrentTabLabel();
       this.noteManager.loadActiveNote();
+    } else if (store.getState().viewMode === 'roadmap') {
+      this.roadmapViewerManager.loadRoadmaps();
     }
 
     // 4. Check initial Pin state

@@ -1,6 +1,6 @@
 [package]
 name = "todolite"
-version = "3.0.0"
+version = "3.1.0"
 description = "A lightweight notebook todo app for Windows"
 edition = "2021"
 
@@ -14,9 +14,16 @@ tauri-plugin-global-shortcut = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 uuid = { version = "1.0", features = ["v4"] }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 rfd = "0.17.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
 

@@ -7,6 +7,7 @@ const STORAGE_KEY_TABS = 'todolite_tabs_data';
 const STORAGE_KEY_NOTE_TABS = 'todolite_note_tabs_data';
 const STORAGE_KEY_TODOS = 'todolite_todos_data';
 const STORAGE_KEY_NOTES = 'todolite_notes_data';
+const STORAGE_KEY_ROADMAPS = 'todolite_roadmaps_data';
 
 // Initial default seed note tabs
 const DEFAULT_NOTE_TABS = [
@@ -80,12 +81,39 @@ export class Bridge {
       res.dueDate = dueDate;
       res.text = args.text || '';
       res.priority = args.priority || 'none';
-    } else if (command === 'reorder_todos' || command === 'reorder_tabs' || command === 'reorder_note_tabs') {
+    } else if (command === 'reorder_todos' || command === 'reorder_tabs' || command === 'reorder_note_tabs' || command === 'reorder_roadmaps') {
       res.items = (args.items || []).map(item => ({
         id: item.id,
         sort_order: item.sort_order ?? item.sortOrder ?? 0,
         sortOrder: item.sort_order ?? item.sortOrder ?? 0
       }));
+    } else if (command === 'create_roadmap') {
+      const isVisible = args.is_visible !== undefined ? args.is_visible : (args.isVisible !== undefined ? args.isVisible : 1);
+      const dataJson = args.data_json !== undefined ? args.data_json : (args.dataJson !== undefined ? args.dataJson : '{}');
+      res.title = args.title || 'Lộ trình mới';
+      res.kind = args.kind || 'flowchart';
+      res.is_visible = isVisible ? 1 : 0;
+      res.isVisible = isVisible ? 1 : 0;
+      res.data_json = dataJson;
+      res.dataJson = dataJson;
+    } else if (command === 'update_roadmap_meta') {
+      const isVisible = args.is_visible !== undefined ? args.is_visible : (args.isVisible !== undefined ? args.isVisible : 1);
+      res.id = args.id;
+      res.title = args.title || '';
+      res.is_visible = isVisible ? 1 : 0;
+      res.isVisible = isVisible ? 1 : 0;
+    } else if (command === 'update_roadmap_data') {
+      const dataJson = args.data_json !== undefined ? args.data_json : (args.dataJson !== undefined ? args.dataJson : '{}');
+      res.id = args.id;
+      res.data_json = dataJson;
+      res.dataJson = dataJson;
+    } else if (command === 'open_roadmap_studio') {
+      const roadmapId = args.roadmap_id !== undefined ? args.roadmap_id : (args.roadmapId !== undefined ? args.roadmapId : null);
+      res.roadmap_id = roadmapId;
+      res.roadmapId = roadmapId;
+    } else if (command === 'sync_theme_to_windows') {
+      res.theme = args.theme || 'light';
+      res.style = args.style || 'glass';
     } else if (command === 'update_todo_priority') {
       res.id = args.id;
       res.priority = args.priority || 'none';
@@ -132,6 +160,7 @@ export class Bridge {
       res.note_tabs = args.note_tabs || args.noteTabs || [];
       res.noteTabs = res.note_tabs;
       res.notes = args.notes || [];
+      res.roadmaps = args.roadmaps || [];
     }
     return res;
   }
@@ -286,6 +315,7 @@ export class Bridge {
       localStorage.removeItem(STORAGE_KEY_TODOS);
       localStorage.removeItem(STORAGE_KEY_NOTE_TABS);
       localStorage.removeItem(STORAGE_KEY_NOTES);
+      localStorage.removeItem(STORAGE_KEY_ROADMAPS);
     } else if (command === 'restore_backup' && args) {
       const tabs = args.tabs || [];
       const todos = args.todos || [];
@@ -689,11 +719,105 @@ export class Bridge {
       case 'open_export_directory':
         return null;
 
+      case 'get_all_roadmaps': {
+        const raw = localStorage.getItem(STORAGE_KEY_ROADMAPS);
+        if (!raw) return [];
+        try {
+          const list = JSON.parse(raw);
+          return Array.isArray(list)
+            ? list.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            : [];
+        } catch {
+          return [];
+        }
+      }
+
+      case 'create_roadmap': {
+        const roadmaps = this.fallbackHandler('get_all_roadmaps');
+        const now = new Date().toISOString();
+        const isVisible = args.is_visible !== undefined ? args.is_visible : (args.isVisible !== undefined ? args.isVisible : 1);
+        const dataJson = args.data_json !== undefined ? args.data_json : (args.dataJson !== undefined ? args.dataJson : '{}');
+        const newItem = {
+          id: 'rm-' + Date.now(),
+          title: (args.title || '').trim() || 'Lộ trình mới',
+          kind: args.kind === 'timeline' ? 'timeline' : 'flowchart',
+          is_visible: isVisible ? 1 : 0,
+          sort_order: roadmaps.length,
+          data_json: dataJson,
+          created_at: now,
+          updated_at: now
+        };
+        roadmaps.push(newItem);
+        localStorage.setItem(STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+        return newItem;
+      }
+
+      case 'update_roadmap_meta': {
+        const roadmaps = this.fallbackHandler('get_all_roadmaps');
+        const idx = roadmaps.findIndex(r => r.id === args.id);
+        if (idx === -1) throw new Error('Roadmap not found');
+        const isVisible = args.is_visible !== undefined ? args.is_visible : (args.isVisible !== undefined ? args.isVisible : roadmaps[idx].is_visible);
+        roadmaps[idx] = {
+          ...roadmaps[idx],
+          title: (args.title || '').trim() || roadmaps[idx].title,
+          is_visible: isVisible ? 1 : 0,
+          updated_at: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+        return roadmaps[idx];
+      }
+
+      case 'update_roadmap_data': {
+        const roadmaps = this.fallbackHandler('get_all_roadmaps');
+        const idx = roadmaps.findIndex(r => r.id === args.id);
+        if (idx === -1) throw new Error('Roadmap not found');
+        const dataJson = args.data_json !== undefined ? args.data_json : (args.dataJson !== undefined ? args.dataJson : '{}');
+        roadmaps[idx] = {
+          ...roadmaps[idx],
+          data_json: dataJson,
+          updated_at: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+        return roadmaps[idx];
+      }
+
+      case 'delete_roadmap': {
+        let roadmaps = this.fallbackHandler('get_all_roadmaps');
+        roadmaps = roadmaps.filter(r => r.id !== args.id);
+        localStorage.setItem(STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+        return true;
+      }
+
+      case 'reorder_roadmaps': {
+        let roadmaps = this.fallbackHandler('get_all_roadmaps');
+        const map = new Map((args.items || []).map(item => [item.id, item.sort_order ?? item.sortOrder ?? 0]));
+        roadmaps.forEach(r => {
+          if (map.has(r.id)) r.sort_order = map.get(r.id);
+        });
+        roadmaps.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        localStorage.setItem(STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+        return true;
+      }
+
+      case 'open_roadmap_studio': {
+        const roadmapId = args.roadmap_id || args.roadmapId || null;
+        const url = roadmapId
+          ? `roadmap-studio.html?id=${encodeURIComponent(roadmapId)}`
+          : 'roadmap-studio.html';
+        window.open(url, 'todolite_roadmap_studio');
+        return true;
+      }
+
+      case 'sync_theme_to_windows': {
+        return true;
+      }
+
       case 'reset_database': {
         localStorage.removeItem(STORAGE_KEY_TABS);
         localStorage.removeItem(STORAGE_KEY_TODOS);
         localStorage.removeItem(STORAGE_KEY_NOTE_TABS);
         localStorage.removeItem(STORAGE_KEY_NOTES);
+        localStorage.removeItem(STORAGE_KEY_ROADMAPS);
         return true;
       }
 
@@ -702,6 +826,7 @@ export class Bridge {
         const todos = args.todos || [];
         const noteTabs = args.note_tabs || args.noteTabs || [];
         const notesList = args.notes || [];
+        const roadmaps = args.roadmaps || [];
         localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
         localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
         localStorage.setItem(STORAGE_KEY_NOTE_TABS, JSON.stringify(noteTabs));
@@ -710,6 +835,7 @@ export class Bridge {
           if (n && n.tab_id) notesObj[n.tab_id] = n;
         });
         localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notesObj));
+        localStorage.setItem(STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
         return true;
       }
 

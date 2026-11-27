@@ -11,10 +11,11 @@ class StateStore {
       isPinned: true, // Default always on top
       theme: 'light',
       style: 'glass', // 'glass' | 'minimal'
-      viewMode: 'checklist', // 'checklist' | 'note' | 'focus' | 'calculator'
+      viewMode: 'checklist', // 'checklist' | 'note' | 'focus' | 'calculator' | 'roadmap'
       activeNoteTabId: null,
       noteTabs: [], // Note mode tabs list
       notes: {}, // Cache of notes by tabId: { [tabId]: NoteItem }
+      roadmaps: [], // List of all roadmaps
       isSearchOpen: false
     };
     this.listeners = new Map();

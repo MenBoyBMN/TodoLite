@@ -86,6 +86,7 @@ export class SettingsManager {
     this.focusManager = options.focusManager || null;
     this.todoManager = options.todoManager || null;
     this.noteManager = options.noteManager || null;
+    this.roadmapViewerManager = options.roadmapViewerManager || null;
 
     this.settings = { ...DEFAULT_SETTINGS };
 
@@ -691,15 +692,18 @@ export class SettingsManager {
         }
       }
 
+      const roadmaps = (await Bridge.invoke('get_all_roadmaps')) || [];
+
       const backupData = {
         app: 'TodoLite',
-        version: '3.0.0',
+        version: '3.1.0',
         exportedAt: new Date().toISOString(),
         settings: this.settings,
         tabs: tabs || [],
         todos: todos || [],
         noteTabs: noteTabs || [],
-        notes: allNotes
+        notes: allNotes,
+        roadmaps
       };
 
       const dateTag = new Date().toISOString().slice(0, 10);
@@ -761,7 +765,8 @@ export class SettingsManager {
         tabs: data.tabs || [],
         todos: data.todos || [],
         note_tabs: data.noteTabs || [],
-        notes: notesList
+        notes: notesList,
+        roadmaps: Array.isArray(data.roadmaps) ? data.roadmaps : []
       });
 
       // 2. Restore settings
@@ -786,6 +791,10 @@ export class SettingsManager {
         activeNoteTabId: data.noteTabs?.[0]?.id || null,
         notes: notesMap
       });
+
+      if (this.roadmapViewerManager) {
+        await this.roadmapViewerManager.loadRoadmaps();
+      }
 
       this.updateStorageStats();
       showToast('Đã phục hồi toàn bộ dữ liệu TodoLite thành công! 📤', 'info');
